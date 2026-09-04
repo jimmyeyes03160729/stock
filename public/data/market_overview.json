@@ -1,0 +1,32 @@
+{
+  "updated_at": "2026-09-04 08:39:04",
+  "stocks": [
+    {
+      "symbol": "2330",
+      "price": 2410.0,
+      "prob_10d": 70.0,
+      "rating": "Bullish",
+      "trust_buy": -329,
+      "total_inst_buy": 1963,
+      "expected_p50": 5.91
+    },
+    {
+      "symbol": "2454",
+      "price": 4415.0,
+      "prob_10d": 68.0,
+      "rating": "Bullish",
+      "trust_buy": 349,
+      "total_inst_buy": 987,
+      "expected_p50": 8.7
+    },
+    {
+      "symbol": "2317",
+      "price": 256.0,
+      "prob_10d": 80.0,
+      "rating": "Bullish",
+      "trust_buy": 1155,
+      "total_inst_buy": 28933,
+      "expected_p50": 1.61
+    }
+  ]
+}
