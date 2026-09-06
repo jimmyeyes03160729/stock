@@ -1,0 +1,34 @@
+name: Daily CNN AI Stock Screener
+
+on:
+  schedule:
+    - cron: '30 8 * * 1-5' # 台灣時間週一至週五 16:30
+  workflow_dispatch:
+
+jobs:
+  run-cnn-inference:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install torch torchvision numpy pandas yfinance requests
+
+      - name: Run CNN Inference
+        run: python scripts/ai_inference.py
+
+      - name: Commit and Push AI JSON
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/ai_signals.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-update AI CNN signals" && git push)
