@@ -7,23 +7,23 @@ from pydantic import BaseModel
 from .database import engine, Base, get_db
 from .models import UserWatchlistGroup, WatchlistItem, StockDividend
 from .services.tw_stocks import TaiwanStockService
-from .services.analyzer import MultiTimeframeAnalyzer
 from .services.screener import StockScreener
+from .services.analyzer import MultiTimeframeAnalyzer
 from .services.market_stream import market_manager, real_time_market_ticker
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="台股智慧戰情與推薦系統", version="2.2.0")
+app = FastAPI(title="台股智慧戰情與推薦系統 (twstock 驅動)", version="2.3.0")
 
 class WatchlistAddRequest(BaseModel):
-    query: str  # 可以是 00878 也可以是 "三集瑞"
+    query: str
 
 class GroupCreate(BaseModel):
     name: str
 
 @app.on_event("startup")
 async def startup():
-    # 預設股利與自選群組初始化
+    # 初始化資料庫預設群組與股利
     db = next(get_db())
     if not db.query(StockDividend).first():
         db.add_all([
@@ -34,8 +34,7 @@ async def startup():
             StockDividend(symbol="2317", year=2024, cash_dividend=5.4, stock_dividend=0.0, yield_rate=3.1),
         ])
         
-        # 建立預設群組
-        grp = UserWatchlistGroup(name="我的核心持股", user_id="default_user")
+        grp = UserWatchlistGroup(name="核心持股庫", user_id="default_user")
         db.add(grp)
         db.commit()
         db.refresh(grp)
@@ -48,17 +47,17 @@ async def startup():
         db.commit()
     db.close()
 
-    # 啟動 WebSocket 大盤即時跳動
+    # 啟動 WebSocket 大盤即時廣播
     asyncio.create_task(real_time_market_ticker())
 
-# --- API 端點 ---
+# --- REST APIs ---
 
-# 3. 搜尋 API：輸入「三集瑞」或「00878」直接搜尋
+# 搜尋 API：輸入「三集瑞」或「00878」直接返回模糊搜尋結果
 @app.get("/api/v2/stocks/search")
 def search_stocks(q: str):
     return TaiwanStockService.search_stocks(q)
 
-# 2. 自選股群組清單
+# 自選群組列表
 @app.get("/api/v2/watchlists")
 def get_watchlists(db: Session = Depends(get_db)):
     groups = db.query(UserWatchlistGroup).all()
@@ -78,21 +77,20 @@ def create_group(payload: GroupCreate, db: Session = Depends(get_db)):
     db.commit()
     return {"id": grp.id, "name": grp.name}
 
-# 1. 新增股票至群組：自動辨識代號或名稱，統一格式化為「名稱 (代號)」
+# 新增自選股：自動解析代號或中文名稱，並以「名稱 (代號)」入庫
 @app.post("/api/v2/watchlists/{group_id}/items")
 def add_to_watchlist(group_id: int, payload: WatchlistAddRequest, db: Session = Depends(get_db)):
     stock_info = TaiwanStockService.get_stock_info(payload.query)
-    
     item = WatchlistItem(
         group_id=group_id,
         symbol=stock_info["symbol"],
-        name=stock_info["display"]  # 儲存為 國泰永續高股息 (00878)
+        name=stock_info["display"]  # 例如：國泰永續高股息 (00878)
     )
     db.add(item)
     db.commit()
     return {"status": "success", "stock": stock_info}
 
-# 4. 價格區間看漲推薦
+# 價格區間推薦系統
 @app.get("/api/v2/screener/bullish")
 def screen_bullish(min_price: float = 0.0, max_price: float = 9999.0):
     return StockScreener.screen_by_price_range(min_price, max_price)
@@ -100,10 +98,17 @@ def screen_bullish(min_price: float = 0.0, max_price: float = 9999.0):
 # 歷年股利 API
 @app.get("/api/v2/stocks/{symbol}/dividends")
 def get_dividends(symbol: str, db: Session = Depends(get_db)):
-    records = db.query(StockDividend).filter(StockDividend.symbol == symbol).order_by(StockDividend.year.desc()).all()
-    return records
+    return db.query(StockDividend).filter(StockDividend.symbol == symbol).order_by(StockDividend.year.desc()).all()
 
-# WebSocket 大盤廣播
+# 多週期分析 API
+@app.get("/api/v2/stocks/{symbol}/multi-cycle-analysis")
+def get_analysis(symbol: str):
+    data = StockScreener.get_stock_price_and_history(symbol)
+    return MultiTimeframeAnalyzer.evaluate_stock(
+        data["daily_prices"], data["monthly_prices"], data["quarterly_prices"]
+    )
+
+# WebSocket 即時推播端點
 @app.websocket("/ws/market")
 async def ws_market(websocket: WebSocket):
     await market_manager.connect(websocket)
