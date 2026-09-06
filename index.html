@@ -368,29 +368,31 @@
       { symbol: "0050", name: "元大台灣50", price: 208.5, isETF: true }
     ];
 
-    async function loadLiveTaiwanStockPool() {
+async function loadLiveTaiwanStockPool() {
       try {
         const response = await fetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_AVG_ALL');
         if (!response.ok) throw new Error('API 連線失敗');
         const rawData = await response.json();
         
         if (Array.isArray(rawData) && rawData.length > 0) {
-          REAL_TAIWAN_STOCKS = rawData.map(item => {
-            const code = String(item.Code).trim();
-            const name = String(item.Name).trim();
-            const price = parseFloat(item.ClosingPrice) || parseFloat(item.MonthlyAveragePrice) || 50.0;
-            const isETF = code.startsWith('00') || name.includes('ETF') || name.includes('指數');
-            return { symbol: code, name: name, price: price, isETF: isETF };
-          });
+          REAL_TAIWAN_STOCKS = rawData
+            .map(item => {
+              const code = String(item.Code).trim();
+              const name = String(item.Name).trim();
+              const price = parseFloat(item.ClosingPrice) || parseFloat(item.MonthlyAveragePrice) || 50.0;
+              const isETF = code.startsWith('00') || name.includes('ETF') || name.includes('指數');
+              return { symbol: code, name: name, price: price, isETF: isETF };
+            })
+            // 🌟 過濾條件：只保留 4 位數標準台股代號或 00 開頭的 ETF，排除權證與奇怪的代號
+            .filter(s => /^\d{4}$/.test(s.symbol));
         }
       } catch (err) {
         console.warn("無法即時連線證交所 API，使用預設核心清單", err);
       }
       
-      document.getElementById("stockCountBadge").textContent = `全市場 ${REAL_TAIWAN_STOCKS.length} 檔已同步`;
+      document.getElementById("stockCountBadge").textContent = `全市場正規台股 ${REAL_TAIWAN_STOCKS.length} 檔已同步`;
       resetAndRunScreener();
     }
-
     let currentSelectedModel = "K線與均線趨勢模型";
     function switchCNNModel(name) { currentSelectedModel = name; resetAndRunScreener(); }
 
