@@ -1,0 +1,23 @@
+{
+  "updated_at": "2026-09-04 16:30:00",
+  "stocks": [
+    {
+      "symbol": "2330",
+      "price": 980.0,
+      "prob_10d": 72.5,
+      "rating": "Bullish"
+    },
+    {
+      "symbol": "2454",
+      "price": 1250.0,
+      "prob_10d": 64.0,
+      "rating": "Neutral"
+    },
+    {
+      "symbol": "2317",
+      "price": 185.0,
+      "prob_10d": 68.2,
+      "rating": "Bullish"
+    }
+  ]
+}
