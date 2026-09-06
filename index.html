@@ -1,25 +1,142 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-TW">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>台股量化分析與情境預判看板</title>
-    <style>
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>台股量化預判與自選系統 By JimmyWei</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCAl-PY9lk41YGbq4HJIVElYJqiNdpPr2g",
+      authDomain: "money-7c81c.firebaseapp.com",
+      databaseURL: "https://money-7c81c-default-rtdb.firebaseio.com",
+      projectId: "money-7c81c",
+      storageBucket: "money-7c81c.firebasestorage.app",
+      messagingSenderId: "250032270278",
+      appId: "1:250032270278:web:3275df2ed0a8e8a022a0c7",
+      measurementId: "G-WKJ00E5ZF4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+    const googleProvider = new GoogleAuthProvider();
+
+    let unsubscribeFavorites = null;
+
+    window.cloudDB = {
+      // 驗證自訂帳號密碼 (與欠款系統相同)
+      verifyCustomUser: async (customUser, pass) => {
+        const userRef = ref(db, `user_credentials/${customUser}`);
+        const snap = await get(userRef);
+        const data = snap.val();
+        if (data) return data.password === pass;
+        if (customUser === 'jimmyeyes' && pass === '22301989') return true;
+        return false;
+      },
+
+      // Google 綁定驗證
+      getGoogleBinding: async (uid) => {
+        const bindingRef = ref(db, `bindings/${uid}`);
+        const snap = await get(bindingRef);
+        return snap.val();
+      },
+
+      // 監聽並同步自選股
+      listenFavorites: (username, callback) => {
+        if (unsubscribeFavorites) unsubscribeFavorites();
+        const favRef = ref(db, `users/${username}/stock_favorites`);
+        unsubscribeFavorites = onValue(favRef, (snapshot) => {
+          callback(snapshot.val());
+        });
+      },
+
+      // 儲存自選股
+      saveFavorites: (username, favoritesList) => {
+        const favRef = ref(db, `users/${username}/stock_favorites`);
+        return set(favRef, favoritesList);
       }
-      body {
-        background-color: #0a0e17;
-        color: #e0e0e0;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+    };
+
+    window.cloudAuth = {
+      loginWithGoogle: () => signInWithPopup(auth, googleProvider),
+      logout: () => signOut(auth),
+      onAuthChange: (cb) => onAuthStateChanged(auth, cb)
+    };
+
+    window.dispatchEvent(new Event('firebase-ready'));
+  </script>
+
+  <style>
+    body {
+      -webkit-tap-highlight-color: transparent;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col justify-between">
+
+  <div id="loginView" class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-slate-900 p-6 rounded-2xl shadow-xl w-full max-w-sm border border-slate-800 space-y-4">
+      <div class="text-center">
+        <h1 class="text-xl font-bold text-white flex items-center justify-center gap-2">
+          <span>📈</span> 台股量化預判看板
+        </h1>
+        <p class="text-xs text-slate-400 mt-1">請使用欠款記帳同組帳號登入</p>
+      </div>
+
+      <button onclick="handleGoogleSignIn()" class="w-full flex items-center justify-center gap-2 bg-white border border-slate-300 py-2.5 rounded-xl font-semibold text-sm text-slate-800 shadow-sm active:bg-slate-100 transition">
+        <svg class="w-4 h-4" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        使用 Google 帳號一鍵登入
+      </button>
+
+      <div class="flex items-center my-3">
+        <div class="flex-1 border-t border-slate-800"></div>
+        <span class="px-2 text-[11px] text-slate-500">或使用自訂帳密</span>
+        <div class="flex-1 border-t border-slate-800"></div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">自訂帳號</label>
+        <input id="loginUser" type="text" placeholder="請輸入帳號"
+               autocapitalize="none" autocorrect="off" spellcheck="false"
+               class="w-full px-3 py-2 border border-slate-700 rounded-xl text-sm bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 text-white font-medium">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">密碼</label>
+        <input id="loginPass" type="password" placeholder="請輸入密碼"
+               autocapitalize="none" autocorrect="off"
+               class="w-full px-3 py-2 border border-slate-700 rounded-xl text-sm bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 text-white">
+      </div>
+      <p id="loginError" class="text-xs text-rose-400 hidden text-center">帳號或密碼錯誤！請重新輸入。</p>
+      <button onclick="handleCustomLogin()" class="w-full bg-sky-600 text-white py-2.5 rounded-xl font-semibold text-sm active:bg-sky-700 shadow-md">帳密登入</button>
+    </div>
+  </div>
+
+  <div id="mainApp" class="hidden max-w-4xl mx-auto px-4 py-4 space-y-4 flex-1 w-full pb-10">
+    <header class="bg-slate-900 px-4 py-3 rounded-2xl shadow-sm border border-slate-800 flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">📈</span>
+        <div>
+          <h1 class="text-sm font-bold text-white tracking-tight">台股量化預判看板</h1>
+          <p class="text-[10px] text-slate-400">用戶：<span id="currentAccountBadge" class="font-bold text-sky-400 font-mono">--</span></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="syncStatus" class="inline-flex items-center gap-1 text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded-full font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          已同步
+        </span>
+        <button onclick="handleGlobalLogout()" class="text-xs text-slate-400 hover:text-rose-400 px
