@@ -1,0 +1,51 @@
+// 抓取 GitHub Actions 產生的 AI 預測結果
+async function loadAICNNSignals() {
+  try {
+    const res = await fetch('./data/ai_signals.json');
+    if (!res.ok) return;
+    const aiData = await res.json();
+    
+    console.log("載入 AI CNN 模型預測數據:", aiData);
+    
+    // 更新推薦列表與評分
+    aiData.stocks.forEach(stockAI => {
+      const match = ALL_TW_STOCKS.find(s => s.symbol === stockAI.symbol);
+      if (match) {
+        match.price = stockAI.current_price;
+        match.aiProbUp = stockAI.prob_up;
+        match.aiAction = stockAI.action;
+        match.aiMatrix = stockAI.image_matrix; // 30x60 陣列
+      }
+    });
+
+    // 重新觸發推薦表格渲染
+    runPriceScreener();
+  } catch (err) {
+    console.log("使用本機演算法備援");
+  }
+}
+
+// 繪製論文中的 30x60 像素黑白影像 (用 HTML5 Canvas 畫出來)
+function drawPixelChartOnCanvas(canvasId, matrix) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || !matrix) return;
+  const ctx = canvas.getContext('2d');
+  
+  const height = matrix.length; // 60
+  const width = matrix[0].length; // 30
+  
+  canvas.width = width * 4;
+  canvas.height = height * 4;
+  
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  ctx.fillStyle = "#ffffff";
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (matrix[y][x] > 0.5) {
+        ctx.fillRect(x * 4, y * 4, 4, 4);
+      }
+    }
+  }
+}
