@@ -57,17 +57,6 @@
 * **量化模型核心**：PyTorch (CNN_5_model)、NumPy、Pandas、FinLab API
 * **自動化維護**：GitHub Actions (CI/CD)、GitHub Pages 靜態代管
 
----
-
-## 🚀 部署指引 (GitHub Pages)
-
-1. 將本專案 Fork 或 Clone 至您的 GitHub 帳號。
-2. 進入專案倉庫的 **Settings ➔ Pages**：
-   * **Source**：選擇 `Deploy from a branch`。
-   * **Branch**：選擇 `main` 分支。
-   * **Folder**：選擇 `/(root)` 根目錄。
-   * 點擊 **Save**。
-3. 稍候約 1 分鐘，即可透過 `https://<你的帳號>.github.io/<倉庫名稱>/` 造訪最新系統！
 
 ---
 
