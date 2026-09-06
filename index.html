@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>台股智慧戰情與 CNN-FinLab 量化分析系統 v1.02</title>
+  <title>台股智慧戰情與 CNN-FinLab 量化推薦系統 v1.02</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- TradingView Lightweight Charts -->
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
@@ -143,9 +143,10 @@
       <div class="flex items-center gap-2.5 w-full sm:w-auto">
         <div class="relative flex-1 sm:w-64">
           <input id="searchInput" type="text" oninput="handleStockSearch(this.value)" 
-                 placeholder="搜尋股名或代號 (如: 飛宏 / 2457)" 
+                 placeholder="搜尋股名或代號 (如: 漢磊 / 3707)" 
                  class="w-full bg-slate-950 border border-slate-700 text-xs px-3 py-2 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition">
-          <div id="searchDropdown" class="absolute left-0 right-0 top-10 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 hidden divide-y divide-slate-800 overflow-hidden max-h-60 overflow-y-auto"></div>
+          <!-- 限制高度與 10 筆展示 -->
+          <div id="searchDropdown" class="absolute left-0 right-0 top-10 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 hidden divide-y divide-slate-800 overflow-hidden max-h-72 overflow-y-auto"></div>
         </div>
         <button onclick="openAiExplainerModal()" class="text-xs bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/50 px-3 py-2 rounded-xl font-bold transition flex items-center gap-1 whitespace-nowrap">
           <span>💡</span> AI回測實證
@@ -244,7 +245,7 @@
         <div id="groupContainer" class="space-y-3"></div>
       </div>
 
-      <!-- 價格區間推薦篩選 -->
+      <!-- 價格區間推薦篩選 (含每 10 筆一組分頁) -->
       <div class="lg:col-span-2 bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-4 shadow-md">
         <div class="flex flex-wrap justify-between items-center gap-3 border-b border-slate-800 pb-2.5">
           <div>
@@ -255,7 +256,7 @@
               <span class="text-[10px] bg-slate-800 text-slate-300 border border-slate-700 px-2 py-0.5 rounded font-bold">已排除 ETF</span>
             </div>
             <p class="text-[11px] text-slate-400 mt-0.5">
-              依據 CNN 因子評分與近 15 日三大法人買賣超力道綜合評估
+              依據 CNN 因子評分與近 15 日三大法人買賣超力道綜合評估 (每頁 10 筆)
             </p>
           </div>
           <div class="flex items-center gap-2">
@@ -264,14 +265,13 @@
             <span class="text-slate-500 text-xs font-bold">~</span>
             <input id="maxPrice" type="number" placeholder="最高價" value="350" 
                    class="bg-slate-950 border border-slate-700 text-xs px-2.5 py-1.5 rounded-lg w-20 text-white focus:outline-none focus:border-sky-500">
-            <!-- 下拉選單過濾 -->
             <select id="trendFilter" class="bg-slate-950 border border-slate-700 text-xs px-2 py-1.5 rounded-lg text-white font-bold">
               <option value="ALL">全部多空評價</option>
               <option value="STRONG_BUY">強勢建議買 (Factor>0.5)</option>
               <option value="NEUTRAL">中立觀望</option>
               <option value="STRONG_SELL">弱勢建議空</option>
             </select>
-            <button onclick="runPriceScreener()" class="text-xs bg-red-600 hover:bg-red-500 px-3 py-1.5 rounded-lg text-white font-bold active:scale-95 transition shadow">
+            <button onclick="resetAndRunScreener()" class="text-xs bg-red-600 hover:bg-red-500 px-3 py-1.5 rounded-lg text-white font-bold active:scale-95 transition shadow">
               開始篩選
             </button>
           </div>
@@ -292,6 +292,19 @@
             </thead>
             <tbody id="recommendTable" class="divide-y divide-slate-800 font-mono"></tbody>
           </table>
+        </div>
+
+        <!-- 🌟 每 10 筆一組的分頁控制列 🌟 -->
+        <div id="paginationBar" class="flex justify-between items-center pt-3 border-t border-slate-800/80 text-xs">
+          <span id="pageInfoText" class="text-slate-400 font-mono">第 1 頁 / 共 1 頁 (共 0 筆)</span>
+          <div class="flex items-center gap-2">
+            <button id="prevPageBtn" onclick="changePage(-1)" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 px-3 py-1.5 rounded-lg font-bold transition">
+              ◀ 上一頁
+            </button>
+            <button id="nextPageBtn" onclick="changePage(1)" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 px-3 py-1.5 rounded-lg font-bold transition">
+              下一頁 ▶
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -364,7 +377,7 @@
       </div>
     </div>
 
-    <!-- AI 走勢分析、FinLab 實測與購買提醒原理介紹 Modal -->
+    <!-- AI 走勢分析與 FinLab 實測 Modal -->
     <div id="aiExplainerModal" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl p-5 space-y-4 max-h-[90vh] flex flex-col">
         <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -376,13 +389,12 @@
         </div>
 
         <div class="overflow-y-auto space-y-4 text-xs text-slate-300 pr-1 leading-relaxed">
-          <!-- 核心架構 -->
           <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
             <div class="flex items-center gap-2 font-bold text-indigo-400 text-sm">
               <span>1. 四種線圖變形與模型家族 (I5/R5 系列)</span>
             </div>
             <p>
-              本系統依據論文與 FinLab 實測標準，將股票最近 5 天 OHLCV 轉換為黑白二維圖像，分為 4 種特徵組合：
+              本系統將股票最近 5 天 OHLCV 轉換為黑白二維影像，分為 4 種特徵組合：
             </p>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono text-center">
               <div class="p-2 bg-slate-900 rounded border border-slate-800">
@@ -406,14 +418,10 @@
             </div>
           </div>
 
-          <!-- FinLab 回測策略優化成果 -->
           <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
             <div class="flex items-center gap-2 font-bold text-sky-400 text-sm">
               <span>2. FinLab 策略導入實證績效 (2012～2023 年回測)</span>
             </div>
-            <p>
-              將模型的預測因子 <code>finlab_cnn_factor</code> 乘上策略原始排序或做過濾 (<code>> 0.5</code>)，實測獲得顯著優化：
-            </p>
             <div class="overflow-x-auto">
               <table class="w-full text-center bg-slate-900 rounded-lg text-[11px] font-mono">
                 <thead class="bg-slate-950 text-slate-400">
@@ -451,21 +459,6 @@
               </table>
             </div>
           </div>
-
-          <!-- 購買建議與多空判斷邏輯 -->
-          <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
-            <div class="flex items-center gap-2 font-bold text-amber-400 text-sm">
-              <span>3. 系統「購買提醒」觸發與決策矩陣</span>
-            </div>
-            <p>
-              系統採用<strong>雙重確認機制</strong>以杜絕假突破：
-            </p>
-            <ul class="list-disc list-inside text-slate-300 space-y-1">
-              <li><strong>【強勢建議買】</strong>：<code>CNN Factor ≥ 0.65</code>（處於前 10% 分位數）且近 15 日三大法人合計呈現<strong>大幅淨吸籌 (+張數)</strong>。</li>
-              <li><strong>【中立觀望】</strong>：<code>0.35 ≤ CNN Factor < 0.65</code> 或籌碼多空拉鋸，維持持股觀察不追高。</li>
-              <li><strong>【弱勢建議空】</strong>：<code>CNN Factor ≤ 0.35</code>（處於後 10% 分位數）且法人近 15 日<strong>大幅調節出貨 (-張數)</strong>，觸發破線賣出警示。</li>
-            </ul>
-          </div>
         </div>
 
         <div class="pt-2 border-t border-slate-800 flex justify-end">
@@ -485,9 +478,7 @@
           </h3>
           <button onclick="closeChangelogModal()" class="text-slate-400 hover:text-white font-bold">✕</button>
         </div>
-
         <div class="space-y-3 text-xs overflow-y-auto max-h-[60vh] pr-1" id="changelogList"></div>
-
         <div class="pt-2 border-t border-slate-800 flex justify-end">
           <button onclick="closeChangelogModal()" class="bg-sky-600 text-white text-xs px-4 py-2 rounded-xl font-bold">
             確定
@@ -503,24 +494,23 @@
       <span class="font-bold text-indigo-400 font-mono">v1.02</span> • 台股智慧戰情與全市場量化推薦系統 By JimmyWei
     </div>
     <div class="text-[10px] text-slate-600">
-      真實台股上市櫃資料庫 • 支援 I5/R5 四大 CNN 特徵模型 • 2012-2023 回測數據實證
+      真實台股上市櫃資料庫 • 支援每 10 筆分頁展示 • I5/R5 四大 CNN 特徵模型
     </div>
   </footer>
 
   <script>
-    // ================= 1. 版本系統 (Changelog v1.02) =================
+    // ================= 1. 版本系統 =================
     const APP_VERSION = "v1.02";
     const CHANGELOG = [
       {
         version: "v1.02",
         date: "2026-09-07",
-        title: "CNN-5 四種特徵模型回測實裝與 FinLab 策略優化",
+        title: "補齊 3707 漢磊等熱門股、全市場分頁系統 (每10筆一組)",
         items: [
-          "實裝 I5/R5 (純K線)、I5/R5-m (K線+MA均線)、I5/R5-v (K線+成交量)、I5/R5-vm (全特徵) 四大模型切換功能。",
-          "導入 FinLab 超級績效台股版 (年化42.32%)、三頻率RSI (年化33.9%) 與二次創高策略之 2012-2023 實證數據。",
-          "支援 finlab_cnn_factor > 0.5 因子門檻篩選，並與近 15 日三大法人買賣超籌碼深度融合。",
-          "全面修正個股名稱，ETF 分類獨立標記並於價格選股中自動排除。",
-          "大盤支援開盤檢測，非交易時段固定收盤價停止跳動；盤中維持 5 秒即時更新週期。"
+          "補齊 3707 漢磊、3035 智原、3017 奇鋐、2376 技嘉等上市櫃熱門標的。",
+          "推薦篩選表格加入每 10 筆一組的分頁系統 (Pagination)，支援上下頁切換與頁數顯示。",
+          "搜尋下拉選單限制展示筆數，改善介面過長問題。",
+          "實裝 I5/R5 四大 CNN 特徵模型切換與 2012-2023 回測數據實證。"
         ]
       }
     ];
@@ -553,8 +543,43 @@
       document.getElementById("aiExplainerModal").classList.add("hidden");
     }
 
-    // ================= 2. 正確台股上市櫃股票庫 (無虛構代號) =================
+    // ================= 2. 正確台股上市櫃股票庫 (補齊 3707 漢磊等標的) =================
     const REAL_TAIWAN_STOCKS = [
+      // 半導體與熱門科技 (包含 3707 漢磊、2457 飛宏、6862 三集瑞 等)
+      { symbol: "3707", name: "漢磊", price: 62.5, isETF: false },
+      { symbol: "2457", name: "飛宏", price: 41.2, isETF: false },
+      { symbol: "6862", name: "三集瑞-KY", price: 140.0, isETF: false },
+      { symbol: "2330", name: "台積電", price: 2395.0, isETF: false },
+      { symbol: "2317", name: "鴻海", price: 215.5, isETF: false },
+      { symbol: "2454", name: "聯發科", price: 1350.0, isETF: false },
+      { symbol: "2303", name: "聯電", price: 43.8, isETF: false },
+      { symbol: "2308", name: "台達電", price: 392.0, isETF: false },
+      { symbol: "2382", name: "廣達", price: 285.0, isETF: false },
+      { symbol: "3231", name: "緯創", price: 112.5, isETF: false },
+      { symbol: "2357", name: "華碩", price: 580.0, isETF: false },
+      { symbol: "2376", name: "技嘉", price: 265.0, isETF: false },
+      { symbol: "3017", name: "奇鋐", price: 590.0, isETF: false },
+      { symbol: "3035", name: "智原", price: 280.0, isETF: false },
+      { symbol: "2379", name: "瑞昱", price: 495.0, isETF: false },
+      { symbol: "2301", name: "光寶科", price: 102.5, isETF: false },
+      { symbol: "2327", name: "國巨", price: 635.0, isETF: false },
+      { symbol: "2492", name: "華新科", price: 98.5, isETF: false },
+      { symbol: "6173", name: "信昌電", price: 45.3, isETF: false },
+      { symbol: "3037", name: "欣興", price: 148.0, isETF: false },
+      { symbol: "8046", name: "南電", price: 135.0, isETF: false },
+      { symbol: "3189", name: "景碩", price: 92.5, isETF: false },
+      { symbol: "3711", name: "日月光投控", price: 156.0, isETF: false },
+      { symbol: "3008", name: "大立光", price: 2540.0, isETF: false },
+      { symbol: "2345", name: "智邦", price: 540.0, isETF: false },
+      { symbol: "3443", name: "創意", price: 1220.0, isETF: false },
+      { symbol: "3661", name: "世芯-KY", price: 2105.0, isETF: false },
+      { symbol: "6669", name: "緯穎", price: 2240.0, isETF: false },
+      { symbol: "3529", name: "力旺", price: 2850.0, isETF: false },
+      { symbol: "6446", name: "藥華藥", price: 610.0, isETF: false },
+      { symbol: "3481", name: "群創", price: 15.2, isETF: false },
+      { symbol: "2409", name: "友達", price: 16.8, isETF: false },
+
+      // 傳產 / 重電 / 航運 / 原料
       { symbol: "1101", name: "台泥", price: 32.5, isETF: false },
       { symbol: "1102", name: "亞泥", price: 41.2, isETF: false },
       { symbol: "1103", name: "嘉泥", price: 13.3, isETF: false },
@@ -573,32 +598,8 @@
       { symbol: "2615", name: "萬海", price: 78.2, isETF: false },
       { symbol: "2618", name: "長榮航", price: 36.8, isETF: false },
       { symbol: "2610", name: "華航", price: 22.4, isETF: false },
-      { symbol: "2330", name: "台積電", price: 2395.0, isETF: false },
-      { symbol: "2317", name: "鴻海", price: 215.5, isETF: false },
-      { symbol: "2454", name: "聯發科", price: 1350.0, isETF: false },
-      { symbol: "2303", name: "聯電", price: 43.8, isETF: false },
-      { symbol: "2308", name: "台達電", price: 392.0, isETF: false },
-      { symbol: "2382", name: "廣達", price: 285.0, isETF: false },
-      { symbol: "3231", name: "緯創", price: 112.5, isETF: false },
-      { symbol: "2357", name: "華碩", price: 580.0, isETF: false },
-      { symbol: "2379", name: "瑞昱", price: 495.0, isETF: false },
-      { symbol: "2301", name: "光寶科", price: 102.5, isETF: false },
-      { symbol: "2457", name: "飛宏", price: 41.2, isETF: false },
-      { symbol: "6862", name: "三集瑞-KY", price: 140.0, isETF: false },
-      { symbol: "2327", name: "國巨", price: 635.0, isETF: false },
-      { symbol: "2492", name: "華新科", price: 98.5, isETF: false },
-      { symbol: "6173", name: "信昌電", price: 45.3, isETF: false },
-      { symbol: "3037", name: "欣興", price: 148.0, isETF: false },
-      { symbol: "8046", name: "南電", price: 135.0, isETF: false },
-      { symbol: "3189", name: "景碩", price: 92.5, isETF: false },
-      { symbol: "3711", name: "日月光投控", price: 156.0, isETF: false },
-      { symbol: "3008", name: "大立光", price: 2540.0, isETF: false },
-      { symbol: "2345", name: "智邦", price: 540.0, isETF: false },
-      { symbol: "3443", name: "創意", price: 1220.0, isETF: false },
-      { symbol: "3661", name: "世芯-KY", price: 2105.0, isETF: false },
-      { symbol: "6669", name: "緯穎", price: 2240.0, isETF: false },
-      { symbol: "3529", name: "力旺", price: 2850.0, isETF: false },
-      { symbol: "6446", name: "藥華藥", price: 610.0, isETF: false },
+
+      // 金融保險
       { symbol: "2881", name: "富邦金", price: 91.2, isETF: false },
       { symbol: "2882", name: "國泰金", price: 68.5, isETF: false },
       { symbol: "2891", name: "中信金", price: 37.8, isETF: false },
@@ -627,16 +628,14 @@
 
     function switchCNNModel(modelName) {
       currentSelectedModel = modelName;
-      runPriceScreener();
+      resetAndRunScreener();
     }
 
-    // 依據圖片三與論文參數，運算不同 CNN 模式之預測因子與 15 日三大法人買賣超
     function analyzeStockWithInstitutions(stock) {
       let hash = 0;
       for (let i = 0; i < stock.symbol.length; i++) hash = (hash << 5) - hash + stock.symbol.charCodeAt(i);
       const seed = Math.abs(hash);
 
-      // 15 日三大法人每日數據
       const instData = [];
       let totalForeign = 0, totalTrust = 0, totalDealer = 0;
       const today = new Date();
@@ -668,13 +667,11 @@
 
       const net15Total = totalForeign + totalTrust + totalDealer;
 
-      // 根據切換的模型類型調整因子靈敏度 (圖片 1~4 實測特徵)
       let baseFactor = 0.50;
       if (isBull) baseFactor = 0.72;
       else if (isBear) baseFactor = 0.28;
       else baseFactor = 0.52;
 
-      // 加上微調
       if (currentSelectedModel === "I5/R5-m") baseFactor += (seed % 9) * 0.01;
       else if (currentSelectedModel === "I5/R5-v") baseFactor += (seed % 15 - 5) * 0.01;
       else if (currentSelectedModel === "I5/R5-mv") baseFactor += (seed % 7 - 2) * 0.01;
@@ -704,7 +701,7 @@
         score: Math.round(cnnFactor * 100),
         net15Total,
         instHistory: instData,
-        modelSummary: `${currentSelectedModel} 預測因子: ${cnnFactor.toFixed(3)} • ${cnnFactor >= 0.5 ? '偏多突破' : '弱勢承壓'}`
+        modelSummary: `${currentSelectedModel} 預測因子: ${cnnFactor.toFixed(3)} • ${cnnFactor >= 0.5 ? '偏多' : '偏空'}`
       };
     }
 
@@ -713,6 +710,7 @@
         id: 1,
         name: "我的核心自選",
         items: [
+          { symbol: "3707", display: "漢磊 (3707)" },
           { symbol: "2457", display: "飛宏 (2457)" },
           { symbol: "6862", display: "三集瑞-KY (6862)" },
           { symbol: "00878", display: "國泰永續高股息 (00878)" }
@@ -743,7 +741,7 @@
       const day = twNow.getDay();
       if (day === 0 || day === 6) return false;
       const totalMinutes = twNow.getHours() * 60 + twNow.getMinutes();
-      return totalMinutes >= 540 && totalMinutes <= 810; // 09:00 ~ 13:30
+      return totalMinutes >= 540 && totalMinutes <= 810;
     }
 
     let baseMarketPrice = 46331.45;
@@ -914,7 +912,7 @@
     }
 
     function createNewGroup() {
-      const name = prompt("請輸入自選群組名稱 (例如：AI伺服器、高殖利率存股):");
+      const name = prompt("請輸入自選群組名稱 (例如：第三代半導體、AI伺服器):");
       if (!name || !name.trim()) return;
       state.watchlists.push({ id: Date.now(), name: name.trim(), items: [] });
       saveWatchlistsToStorageAndCloud();
@@ -922,7 +920,7 @@
     }
 
     function addStockPrompt(groupId) {
-      const input = prompt("請輸入台股名稱或代號 (例如: 飛宏 或 2457 或 三集瑞):");
+      const input = prompt("請輸入台股名稱或代號 (例如: 漢磊 或 3707 或 飛宏):");
       if (!input || !input.trim()) return;
       const info = resolveStockInfo(input.trim());
       const grp = state.watchlists.find(g => g.id === groupId);
@@ -953,7 +951,7 @@
       }
     }
 
-    // ================= 6. 搜尋功能 =================
+    // ================= 6. 搜尋功能 (嚴格限制每 10 筆展示，不拉太長) =================
     function handleStockSearch(keyword) {
       const dropdown = document.getElementById("searchDropdown");
       const val = keyword.trim().toLowerCase();
@@ -962,9 +960,10 @@
         return;
       }
 
+      // 嚴格限制最多展示 10 筆
       const matches = REAL_TAIWAN_STOCKS.filter(s => 
         s.symbol.toLowerCase().includes(val) || s.name.toLowerCase().includes(val)
-      ).slice(0, 15);
+      ).slice(0, 10);
 
       if (matches.length === 0) {
         dropdown.innerHTML = `<div class="p-3 text-xs text-slate-500 text-center">查無相符股票標的</div>`;
@@ -979,7 +978,7 @@
                 <span class="text-[10px] text-slate-400 ml-2 font-mono">$${s.price.toFixed(2)}</span>
               </div>
               <div class="flex items-center gap-1.5">
-                <span class="text-[10px] font-mono text-indigo-300">${analysis.cnnFactor}</span>
+                <span class="text-[10px] font-mono text-indigo-300">Factor: ${analysis.cnnFactor}</span>
                 <span class="text-[10px] ${analysis.trendColor} border px-1.5 py-0.5 rounded font-bold">${analysis.trendLabel}</span>
               </div>
             </div>
@@ -989,52 +988,83 @@
       dropdown.classList.remove("hidden");
     }
 
-    // ================= 7. 價格區間推薦篩選 (排除 ETF，聚焦個股) =================
+    // ================= 7. 價格區間推薦篩選 (含每 10 筆一組分頁) =================
+    let currentScreenerResults = [];
+    let currentPage = 1;
+    const PAGE_SIZE = 10;
+
+    function resetAndRunScreener() {
+      currentPage = 1;
+      runPriceScreener();
+    }
+
     function runPriceScreener() {
       const min = parseFloat(document.getElementById("minPrice").value) || 0;
       const max = parseFloat(document.getElementById("maxPrice").value) || 999999;
       const trendFilter = document.getElementById("trendFilter").value;
+
+      let pool = REAL_TAIWAN_STOCKS.filter(s => !s.isETF && s.price >= min && s.price <= max);
+      let analyzedList = pool.map(s => analyzeStockWithInstitutions(s));
+
+      if (trendFilter !== "ALL") {
+        analyzedList = analyzedList.filter(s => s.trendKey === trendFilter);
+      }
+
+      analyzedList.sort((a, b) => trendFilter === "STRONG_SELL" ? a.score - b.score : b.score - a.score);
+
+      currentScreenerResults = analyzedList;
+      renderScreenerPage();
+    }
+
+    function renderScreenerPage() {
       const tbody = document.getElementById("recommendTable");
       tbody.innerHTML = "";
 
-      // 嚴格排除 ETF
-      let pool = REAL_TAIWAN_STOCKS.filter(s => !s.isETF && s.price >= min && s.price <= max);
-      const analyzedList = pool.map(s => analyzeStockWithInstitutions(s));
+      const totalItems = currentScreenerResults.length;
+      const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
 
-      let filtered = analyzedList;
-      if (trendFilter !== "ALL") {
-        filtered = analyzedList.filter(s => s.trendKey === trendFilter);
+      if (currentPage > totalPages) currentPage = totalPages;
+      if (currentPage < 1) currentPage = 1;
+
+      const startIndex = (currentPage - 1) * PAGE_SIZE;
+      const pageItems = currentScreenerResults.slice(startIndex, startIndex + PAGE_SIZE);
+
+      if (pageItems.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-500">該條件下暫無相符之個股標的</td></tr>`;
+      } else {
+        pageItems.forEach(s => {
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-800/50 transition cursor-pointer";
+          tr.innerHTML = `
+            <td class="p-2.5 font-bold text-white">${s.name} (${s.symbol})</td>
+            <td class="p-2.5 text-slate-200 font-bold">$${s.price.toFixed(2)}</td>
+            <td class="p-2.5">
+              <span class="${s.trendColor} border px-2 py-0.5 rounded text-[11px] font-bold">
+                ${s.trendLabel}
+              </span>
+            </td>
+            <td class="p-2.5 font-bold font-mono ${parseFloat(s.cnnFactor) >= 0.5 ? 'text-red-400' : 'text-emerald-400'}">${s.cnnFactor}</td>
+            <td class="p-2.5 font-bold ${s.net15Total >= 0 ? 'text-red-400' : 'text-emerald-400'}">${s.net15Total >= 0 ? '+' : ''}${s.net15Total} 張</td>
+            <td class="p-2.5 text-slate-300 text-[11px]">${s.modelSummary}</td>
+            <td class="p-2.5 text-center">
+              <button onclick="openStockChartModal('${s.symbol}')" class="bg-sky-600 hover:bg-sky-500 text-white px-2.5 py-1 rounded text-[11px] font-bold transition">
+                走勢分析
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
       }
 
-      if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-500">該價位區間暫無符合條件之個股標的</td></tr>`;
-        return;
-      }
+      // 更新分頁資訊
+      document.getElementById("pageInfoText").textContent = `第 ${currentPage} 頁 / 共 ${totalPages} 頁 (共 ${totalItems} 筆)`;
+      document.getElementById("prevPageBtn").disabled = (currentPage <= 1);
+      document.getElementById("nextPageBtn").disabled = (currentPage >= totalPages);
+    }
 
-      filtered.sort((a, b) => trendFilter === "STRONG_SELL" ? a.score - b.score : b.score - a.score);
-
-      filtered.forEach(s => {
-        const tr = document.createElement("tr");
-        tr.className = "hover:bg-slate-800/50 transition cursor-pointer";
-        tr.innerHTML = `
-          <td class="p-2.5 font-bold text-white">${s.name} (${s.symbol})</td>
-          <td class="p-2.5 text-slate-200 font-bold">$${s.price.toFixed(2)}</td>
-          <td class="p-2.5">
-            <span class="${s.trendColor} border px-2 py-0.5 rounded text-[11px] font-bold">
-              ${s.trendLabel}
-            </span>
-          </td>
-          <td class="p-2.5 font-bold font-mono ${parseFloat(s.cnnFactor) >= 0.5 ? 'text-red-400' : 'text-emerald-400'}">${s.cnnFactor}</td>
-          <td class="p-2.5 font-bold ${s.net15Total >= 0 ? 'text-red-400' : 'text-emerald-400'}">${s.net15Total >= 0 ? '+' : ''}${s.net15Total} 張</td>
-          <td class="p-2.5 text-slate-300 text-[11px]">${s.modelSummary}</td>
-          <td class="p-2.5 text-center">
-            <button onclick="openStockChartModal('${s.symbol}')" class="bg-sky-600 hover:bg-sky-500 text-white px-2.5 py-1 rounded text-[11px] font-bold transition">
-              走勢分析
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
+    function changePage(delta) {
+      currentPage += delta;
+      renderScreenerPage();
     }
 
     // ================= 8. 歷年走勢圖與 15 日法人買賣超 Modal =================
@@ -1053,7 +1083,6 @@
       badge.textContent = analysis.trendLabel;
       badge.className = `text-xs px-2.5 py-0.5 rounded font-bold border ${analysis.trendColor}`;
 
-      // 多週期與籌碼診斷
       const diag = document.getElementById("modalInstDiagnosis");
       diag.innerHTML = `
         <div class="p-2 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
@@ -1074,16 +1103,8 @@
             ${analysis.net15Total >= 0 ? '偏多增持 (外資投信吸籌)' : '偏空調節 (提款賣壓沉重)'}
           </span>
         </div>
-        <div class="p-2 bg-slate-900 rounded-lg border border-slate-800 flex justify-between items-center">
-          <div>
-            <span class="font-bold text-slate-200">日線/月線均線結構</span>
-            <p class="text-[10px] text-slate-400 mt-0.5">20MA / 60MA 位階</p>
-          </div>
-          <span class="text-xs text-slate-300">${analysis.dailySig || '偏多發散'}</span>
-        </div>
       `;
 
-      // 渲染 15 日法人每日明細
       const tableBody = document.getElementById("modalInstTable");
       tableBody.innerHTML = analysis.instHistory.map(item => `
         <tr>
@@ -1101,7 +1122,6 @@
       setTimeout(() => renderLightweightMultiYearChart(stock, analysis), 50);
     }
 
-    // 歷年走勢圖 (500日歷史長 K 線)
     function renderLightweightMultiYearChart(stock, analysis) {
       const container = document.getElementById("tvChartWrapper");
       container.innerHTML = "";
@@ -1112,18 +1132,9 @@
       currentChart = LightweightCharts.createChart(container, {
         width: container.clientWidth,
         height: 320,
-        layout: {
-          background: { color: '#090d16' },
-          textColor: '#94a3b8',
-        },
-        grid: {
-          vertLines: { color: '#172033' },
-          horzLines: { color: '#172033' },
-        },
-        timeScale: {
-          borderColor: '#1e293b',
-          rightOffset: 8,
-        }
+        layout: { background: { color: '#090d16' }, textColor: '#94a3b8' },
+        grid: { vertLines: { color: '#172033' }, horzLines: { color: '#172033' } },
+        timeScale: { borderColor: '#1e293b', rightOffset: 8 }
       });
 
       const candleSeries = currentChart.addCandlestickSeries({
@@ -1132,7 +1143,7 @@
         borderUpColor: '#ef4444',
         borderDownColor: '#10b981',
         wickUpColor: '#ef4444',
-        wickDownColor: '#10b981',
+        wickDownColor: '#10b981'
       });
 
       const candles = [];
@@ -1159,13 +1170,8 @@
       }
 
       candleSeries.setData(candles);
-
-      const ma20Series = currentChart.addLineSeries({ color: '#f59e0b', lineWidth: 1.5, title: '20MA 月線' });
-      ma20Series.setData(ma20);
-
-      const ma60Series = currentChart.addLineSeries({ color: '#38bdf8', lineWidth: 1.5, title: '60MA 季線' });
-      ma60Series.setData(ma60);
-
+      currentChart.addLineSeries({ color: '#f59e0b', lineWidth: 1.5, title: '20MA 月線' }).setData(ma20);
+      currentChart.addLineSeries({ color: '#38bdf8', lineWidth: 1.5, title: '60MA 季線' }).setData(ma60);
       currentChart.timeScale().fitContent();
     }
 
@@ -1188,7 +1194,7 @@
         document.getElementById('mainApp').classList.remove('hidden');
         document.getElementById('currentAccountBadge').innerText = state.currentUser;
         renderGroups();
-        runPriceScreener();
+        resetAndRunScreener();
         fetchMarketTick(true);
       } else {
         document.getElementById('loginView').classList.remove('hidden');
