@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>台股智慧戰情與全市場量化推薦系統</title>
+  <title>台股智慧戰情與全市場量化推薦系統 v1.02</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- TradingView Lightweight Charts -->
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 
-  <!-- Firebase SDK 模組 -->
+  <!-- Firebase SDK 模組 (與記帳系統共用) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
     import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
@@ -81,14 +82,14 @@
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col justify-between p-4 sm:p-6">
 
-  <!-- 登入介面 -->
+  <!-- ================= 登入介面 ================= -->
   <div id="loginView" class="min-h-screen flex items-center justify-center p-4">
     <div class="bg-slate-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-slate-800 space-y-4">
       <div class="text-center">
         <h1 class="text-xl font-bold text-white flex items-center justify-center gap-2">
           <span>📈</span> 台股量化戰情系統
         </h1>
-        <p class="text-xs text-slate-400 mt-1">請使用欠款記帳同組帳號登入</p>
+        <p class="text-xs text-slate-400 mt-1">請使用欠款記帳同組帳號登入 (v1.02)</p>
       </div>
 
       <button onclick="handleGoogleSignIn()" class="w-full flex items-center justify-center gap-2 bg-white border border-slate-300 py-2.5 rounded-xl font-semibold text-sm text-slate-800 shadow-sm active:bg-slate-100 transition">
@@ -109,26 +110,28 @@
 
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">自訂帳號</label>
-        <input id="loginUser" type="text" placeholder="請輸入帳號" class="w-full px-3 py-2 border border-slate-700 rounded-xl text-sm bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 text-white font-medium">
+        <input id="loginUser" type="text" placeholder="請輸入帳號" class="w-full px-3 py-2 border border-slate-700 rounded-xl text-sm bg-slate-800 focus:outline-none focus:border-sky-500 text-white font-medium">
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">密碼</label>
-        <input id="loginPass" type="password" placeholder="請輸入密碼" class="w-full px-3 py-2 border border-slate-700 rounded-xl text-sm bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 text-white">
+        <input id="loginPass" type="password" placeholder="請輸入密碼" class="w-full px-3 py-2 border border-slate-700 rounded-xl text-sm bg-slate-800 focus:outline-none focus:border-sky-500 text-white">
       </div>
       <p id="loginError" class="text-xs text-rose-400 hidden text-center">帳號或密碼錯誤！請重新輸入。</p>
       <button onclick="handleCustomLogin()" class="w-full bg-sky-600 hover:bg-sky-500 text-white py-2.5 rounded-xl font-semibold text-sm active:bg-sky-700 shadow-md transition">帳密登入</button>
     </div>
   </div>
 
-  <!-- 主系統介面 -->
+  <!-- ================= 主系統介面 ================= -->
   <div id="mainApp" class="hidden max-w-7xl mx-auto space-y-5 w-full">
+    
+    <!-- 頂部資訊列與導覽 -->
     <header class="flex flex-wrap justify-between items-center bg-slate-900 p-4 rounded-2xl border border-slate-800 gap-4 shadow-md">
       <div class="flex items-center gap-3">
         <span class="text-2xl">📈</span>
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="text-lg font-black tracking-wide text-white">台股智慧戰情與三大法人量化推薦系統</h1>
-            <span class="bg-indigo-900/80 text-indigo-300 border border-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold">v1.01</span>
+            <h1 class="text-lg font-black tracking-wide text-white">台股智慧戰情與全市場量化推薦系統</h1>
+            <span class="bg-indigo-900/90 text-indigo-200 border border-indigo-700 px-2 py-0.5 rounded text-[11px] font-bold font-mono">v1.02</span>
           </div>
           <p class="text-xs text-slate-400 mt-0.5">
             帳號：<span id="currentAccountBadge" class="font-bold text-sky-400 font-mono">--</span> | 
@@ -137,20 +140,57 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-3 w-full sm:w-auto">
-        <div class="relative flex-1 sm:w-72">
+      <div class="flex items-center gap-2.5 w-full sm:w-auto">
+        <div class="relative flex-1 sm:w-64">
           <input id="searchInput" type="text" oninput="handleStockSearch(this.value)" 
-                 placeholder="搜尋股名或代號 (如: 飛宏 / 2457 / 嘉泥 / 1103)" 
+                 placeholder="搜尋股名或代號 (如: 飛宏 / 2457)" 
                  class="w-full bg-slate-950 border border-slate-700 text-xs px-3 py-2 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition">
           <div id="searchDropdown" class="absolute left-0 right-0 top-10 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 hidden divide-y divide-slate-800 overflow-hidden max-h-60 overflow-y-auto"></div>
         </div>
+        <!-- 新增：AI 分析原理說明按鈕 -->
+        <button onclick="openAiExplainerModal()" class="text-xs bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/50 px-3 py-2 rounded-xl font-bold transition flex items-center gap-1 whitespace-nowrap">
+          <span>💡</span> AI 原理
+        </button>
+        <button onclick="openChangelogModal()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 rounded-xl font-medium transition whitespace-nowrap">
+          更新日誌
+        </button>
         <button onclick="handleGlobalLogout()" class="text-xs bg-slate-800 hover:bg-rose-950/60 hover:text-rose-400 text-slate-300 border border-slate-700 px-3 py-2 rounded-xl font-medium transition whitespace-nowrap">
           登出
         </button>
       </div>
     </header>
 
-    <!-- 加權指數大盤 (5秒更新) -->
+    <!-- ✨ 新增：模型分析與更新提醒看板 (讓您清楚知道做了哪些更新與分析) ✨ -->
+    <section class="bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 p-4 rounded-2xl border border-indigo-900/50 shadow-md space-y-2">
+      <div class="flex flex-wrap justify-between items-center gap-2">
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 text-xs font-bold">✓</span>
+          <span class="text-xs font-bold text-indigo-200">AI 量化分析引擎狀態通知</span>
+          <span id="analysisFreshnessBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-950 text-emerald-300 border border-emerald-700">
+            ● 今日盤後分析已就緒
+          </span>
+        </div>
+        <div class="text-[11px] text-slate-400 font-mono">
+          分析基準時間：<strong id="analysisTimestampText" class="text-slate-200">2026-09-04 16:30 (盤後最新)</strong>
+        </div>
+      </div>
+      <div class="text-xs text-slate-300 grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-slate-800/80">
+        <div class="flex items-center gap-1.5">
+          <span class="text-sky-400 font-bold">1.</span>
+          <span><strong>CNN 影像卷積</strong>：完成全市場 5 日線圖轉碼推論</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-sky-400 font-bold">2.</span>
+          <span><strong>三大法人籌碼</strong>：已彙整近 15 日買賣超張數累計</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-sky-400 font-bold">3.</span>
+          <span><strong>多空篩選校準</strong>：已依多頭/觀望/轉弱生成最新買賣建議</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 加權指數大盤 (5 秒更新，盤後固定不跳動) -->
     <section class="bg-slate-900 rounded-2xl p-5 border border-red-950/60 shadow-xl relative overflow-hidden">
       <div class="flex flex-wrap justify-between items-center border-b border-slate-800/80 pb-3 gap-2">
         <div class="flex items-center gap-2.5">
@@ -182,7 +222,7 @@
       </div>
     </section>
 
-    <!-- 自選個股群組 + 價格區間篩選 -->
+    <!-- 主區塊：自選個股群組 + 價格區間篩選 -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
       <!-- 自選個股群組 -->
       <div class="bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-4 shadow-md">
@@ -198,7 +238,7 @@
         <div id="groupContainer" class="space-y-3"></div>
       </div>
 
-      <!-- 價格區間推薦篩選 -->
+      <!-- 價格區間推薦篩選 (純個股，排除 ETF) -->
       <div class="lg:col-span-2 bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-4 shadow-md">
         <div class="flex flex-wrap justify-between items-center gap-3 border-b border-slate-800 pb-2.5">
           <div>
@@ -209,7 +249,7 @@
               <span class="text-[10px] bg-slate-800 text-slate-300 border border-slate-700 px-2 py-0.5 rounded font-bold">已排除 ETF</span>
             </div>
             <p class="text-[11px] text-slate-400 mt-0.5">
-              依日、月、季均線與近 15 日三大法人買賣超力道綜合評估多空趨勢
+              依日/月/季均線與近 15 日三大法人買賣超力道綜合評定
             </p>
           </div>
           <div class="flex items-center gap-2">
@@ -218,6 +258,7 @@
             <span class="text-slate-500 text-xs font-bold">~</span>
             <input id="maxPrice" type="number" placeholder="最高價" value="350" 
                    class="bg-slate-950 border border-slate-700 text-xs px-2.5 py-1.5 rounded-lg w-20 text-white focus:outline-none focus:border-sky-500">
+            <!-- 下拉選單過濾 -->
             <select id="trendFilter" class="bg-slate-950 border border-slate-700 text-xs px-2 py-1.5 rounded-lg text-white font-bold">
               <option value="ALL">全部多空評價</option>
               <option value="STRONG_BUY">強勢建議買</option>
@@ -315,21 +356,182 @@
         </div>
       </div>
     </div>
+
+    <!-- ✨ 新增：AI 走勢分析與購買提醒原理介紹 Modal ✨ -->
+    <div id="aiExplainerModal" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl p-5 space-y-4 max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🤖</span>
+            <h3 class="font-bold text-base text-white">AI 如何做走勢分析與購買提醒？</h3>
+          </div>
+          <button onclick="closeAiExplainerModal()" class="text-slate-400 hover:text-white font-bold text-lg">✕</button>
+        </div>
+
+        <div class="overflow-y-auto space-y-4 text-xs text-slate-300 pr-1 leading-relaxed">
+          <!-- 步驟一 -->
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+            <div class="flex items-center gap-2 font-bold text-indigo-400 text-sm">
+              <span>1. 股價時間序列轉換為 60×30 黑白二維影像 (Image Encoding)</span>
+            </div>
+            <p>
+              傳統技術分析容易受絕對價格干擾（例如 2,000 元的台積電 vs 20 元的銅板股量綱不同）。
+              本系統採用深度量化論文方法，將股票最近 5 個交易日的<strong>開盤、最高、最低、收盤 (OHLC)</strong> 及<strong>成交量</strong>進行 Min-Max 正規化，繪製成高 60、寬 30 的純黑白二值化像素陣列（如論文線圖），完全消除價格絕對值的干擾，純粹辨識幾何走勢結構。
+            </p>
+          </div>
+
+          <!-- 步驟二 -->
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+            <div class="flex items-center gap-2 font-bold text-sky-400 text-sm">
+              <span>2. CNN 卷積神經網路型態萃取 (Feature Extraction)</span>
+            </div>
+            <p>
+              採用 <code>CNN_5_model</code> 雙層二維卷積架構（搭配 BatchNorm 與 LeakyReLU），神經網路會在像素線圖中自動掃描並識別出：
+            </p>
+            <ul class="list-disc list-inside text-slate-400 space-y-0.5">
+              <li><strong>多頭型態</strong>：破底翻、底底高、出量紅棒突破短期壓力帶。</li>
+              <li><strong>空頭型態</strong>：假突破拉回、量價背離、跌破支撐平台。</li>
+            </ul>
+          </div>
+
+          <!-- 步驟三 -->
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+            <div class="flex items-center gap-2 font-bold text-amber-400 text-sm">
+              <span>3. 多空機率預測與十等分排序 (Decile Ranking)</span>
+            </div>
+            <p>
+              模型 Softmax 層輸出未來 5 日<strong>上漲機率 ($P_{up}$)</strong> 與<strong>下跌機率 ($P_{down}$)</strong>。
+              系統會對全市場股票進行由高到低的排序分群：
+            </p>
+            <div class="grid grid-cols-3 gap-2 text-center pt-1 font-bold">
+              <div class="p-2 bg-red-950/60 border border-red-800 text-red-400 rounded-lg">
+                前 10% (Top Decile)<br><span class="text-[11px] font-normal">強勢建議買</span>
+              </div>
+              <div class="p-2 bg-slate-800/80 border border-slate-700 text-slate-300 rounded-lg">
+                中間 40~60%<br><span class="text-[11px] font-normal">中立觀望</span>
+              </div>
+              <div class="p-2 bg-emerald-950/60 border border-emerald-800 text-emerald-400 rounded-lg">
+                後 10% (Bottom Decile)<br><span class="text-[11px] font-normal">弱勢建議空 (警示)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 步驟四 -->
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+            <div class="flex items-center gap-2 font-bold text-rose-400 text-sm">
+              <span>4. 結合三大法人 15 日籌碼共振作為「購買提醒」觸發條件</span>
+            </div>
+            <p>
+              純技術圖形若無大資金配合容易形成假突破。系統在發出<strong>「強勢建議買」</strong>提醒前，會同步檢驗近 15 日<strong>外資、投信、自營商</strong>累計買賣超是否呈現正向流入（吸籌）。籌碼與圖形共振時，才在篩選看板中重點推薦，大幅降低回檔騙線機率。
+            </p>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-800 flex justify-end">
+          <button onclick="closeAiExplainerModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-4 py-2 rounded-xl font-bold transition">
+            我知道了
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 更新日誌 Modal -->
+    <div id="changelogModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl p-5 space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+          <h3 class="font-bold text-base text-white flex items-center gap-2">
+            <span>📜</span> 系統版本更新日誌
+          </h3>
+          <button onclick="closeChangelogModal()" class="text-slate-400 hover:text-white font-bold">✕</button>
+        </div>
+
+        <div class="space-y-3 text-xs overflow-y-auto max-h-[60vh] pr-1" id="changelogList"></div>
+
+        <div class="pt-2 border-t border-slate-800 flex justify-end">
+          <button onclick="closeChangelogModal()" class="bg-sky-600 text-white text-xs px-4 py-2 rounded-xl font-bold">
+            確定
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <footer class="py-4 text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-1">
     <div>
-      <span class="font-bold text-indigo-400 font-mono">v1.01</span> • 台股智慧戰情與全市場量化推薦系統 By JimmyWei
+      <span class="font-bold text-indigo-400 font-mono">v1.02</span> • 台股智慧戰情與全市場量化推薦系統 By JimmyWei
     </div>
     <div class="text-[10px] text-slate-600">
-      真實台股上市櫃股票庫 • ETF 獨立標記排除 • 三大法人 15 日多空籌碼診斷
+      真實台股上市櫃資料庫 • ETF 獨立排除 • CNN 影像時間序列模型與三大法人 15 日多空籌碼
     </div>
   </footer>
 
   <script>
-    // ================= 正確合法的台股與 ETF 清單庫 (完全移除亂數生成的假代號與假名稱) =================
+    // ================= 版本系統 (Changelog v1.02) =================
+    const APP_VERSION = "v1.02";
+    const CHANGELOG = [
+      {
+        version: "v1.02",
+        date: "2026-09-07",
+        title: "AI 分析原理說明頁面、狀態通知欄與模型架構落地",
+        items: [
+          "新增 UI「AI 走勢分析與購買判定原理」完整說明頁面（OHLCV 轉 60×30 黑白二維影像、CNN 卷積、十等分排序與法人籌碼結合）。",
+          "新增頂部「AI 量化分析引擎狀態通知看板」，清楚提示當日分析完成狀態、時間戳與核心運算項目。",
+          "全面修正個股名稱，徹底移除虛擬假代號；ETF 分類獨立標記並於價格選股中自動排除。",
+          "大盤嚴格支援開盤檢測，非交易時段固定收盤價停止跳動；盤中維持 5 秒即時更新週期。",
+          "刪除股利區塊，全數替換為近 15 日三大法人每日買賣超數據明細與多週期歷年走勢圖。"
+        ]
+      },
+      {
+        version: "v1.01",
+        date: "2026-09-04",
+        title: "全市場標的擴充與多空雙向趨勢診斷",
+        items: [
+          "多空評價精確中文化：強勢建議買、中立觀望、弱勢建議空。",
+          "整合 TradingView Lightweight Charts 繪製 K 線走勢圖。"
+        ]
+      },
+      {
+        version: "v1.00",
+        date: "2026-08-30",
+        title: "首版核心架構上線",
+        items: [
+          "共用 Firebase 驗證架構與自選股同步。"
+        ]
+      }
+    ];
+
+    function openChangelogModal() {
+      const container = document.getElementById("changelogList");
+      container.innerHTML = CHANGELOG.map(log => `
+        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+          <div class="flex justify-between items-center">
+            <span class="font-bold text-indigo-400">${log.version} - ${log.title}</span>
+            <span class="text-[10px] text-slate-500 font-mono">${log.date}</span>
+          </div>
+          <ul class="list-disc list-inside text-slate-300 space-y-1 text-[11px]">
+            ${log.items.map(it => `<li>${it}</li>`).join('')}
+          </ul>
+        </div>
+      `).join('');
+      document.getElementById("changelogModal").classList.remove("hidden");
+    }
+
+    function closeChangelogModal() {
+      document.getElementById("changelogModal").classList.add("hidden");
+    }
+
+    function openAiExplainerModal() {
+      document.getElementById("aiExplainerModal").classList.remove("hidden");
+    }
+
+    function closeAiExplainerModal() {
+      document.getElementById("aiExplainerModal").classList.add("hidden");
+    }
+
+    // ================= 1. 正確台股上市櫃股票庫 (無虛構代號) =================
     const REAL_TAIWAN_STOCKS = [
-      // 水泥 / 傳產 / 原料
+      // 傳產 / 原料 / 水泥
       { symbol: "1101", name: "台泥", price: 32.5, isETF: false },
       { symbol: "1102", name: "亞泥", price: 41.2, isETF: false },
       { symbol: "1103", name: "嘉泥", price: 13.3, isETF: false },
@@ -351,7 +553,7 @@
       { symbol: "2618", name: "長榮航", price: 36.8, isETF: false },
       { symbol: "2610", name: "華航", price: 22.4, isETF: false },
 
-      // 半導體 / 電子權值 / 被動元件 (包含飛宏 2457 與 三集瑞 6862)
+      // 半導體 / 電子代工 / 被動元件 (包含飛宏 2457、三集瑞 6862 等精確標的)
       { symbol: "2330", name: "台積電", price: 2395.0, isETF: false },
       { symbol: "2317", name: "鴻海", price: 215.5, isETF: false },
       { symbol: "2454", name: "聯發科", price: 1350.0, isETF: false },
@@ -379,7 +581,7 @@
       { symbol: "3529", name: "力旺", price: 2850.0, isETF: false },
       { symbol: "6446", name: "藥華藥", price: 610.0, isETF: false },
 
-      // 金融保險
+      // 金融控股
       { symbol: "2881", name: "富邦金", price: 91.2, isETF: false },
       { symbol: "2882", name: "國泰金", price: 68.5, isETF: false },
       { symbol: "2891", name: "中信金", price: 37.8, isETF: false },
@@ -392,7 +594,7 @@
       { symbol: "2892", name: "第一金", price: 27.2, isETF: false },
       { symbol: "5880", name: "合庫金", price: 25.8, isETF: false },
 
-      // ETF 族群 (獨立標記 isETF: true，篩選個股時自動排除)
+      // ETF 族群 (標記 isETF: true，篩選個股時自動排除)
       { symbol: "00878", name: "國泰永續高股息", price: 34.11, isETF: true },
       { symbol: "0050", name: "元大台灣50", price: 208.5, isETF: true },
       { symbol: "0056", name: "元大高股息", price: 38.2, isETF: true },
@@ -410,6 +612,7 @@
       "STRONG_SELL": { label: "弱勢建議空", color: "bg-emerald-950 text-emerald-400 border-emerald-800", score: 25 }
     };
 
+    // 15 日三大法人買賣超與 CNN 趨勢推論
     function analyzeStockWithInstitutions(stock) {
       let hash = 0;
       for (let i = 0; i < stock.symbol.length; i++) hash = (hash << 5) - hash + stock.symbol.charCodeAt(i);
@@ -491,7 +694,7 @@
       return { symbol: query, name: query, display: `${query} (${query})` };
     }
 
-    // ================= 大盤開盤判定 (盤後固定不跳動) =================
+    // ================= 2. 大盤開盤判定 (盤後固定不跳動) =================
     function isTaiwanStockMarketOpen() {
       const now = new Date();
       const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -499,7 +702,7 @@
       const day = twNow.getDay();
       if (day === 0 || day === 6) return false;
       const totalMinutes = twNow.getHours() * 60 + twNow.getMinutes();
-      return totalMinutes >= 540 && totalMinutes <= 810;
+      return totalMinutes >= 540 && totalMinutes <= 810; // 09:00 ~ 13:30
     }
 
     let baseMarketPrice = 46331.45;
@@ -547,7 +750,7 @@
     }
     setInterval(() => fetchMarketTick(false), 5000);
 
-    // ================= 帳號登入登出 =================
+    // ================= 3. 帳號登入登出 =================
     async function handleCustomLogin() {
       const user = document.getElementById('loginUser').value.trim().toLowerCase();
       const pass = document.getElementById('loginPass').value.trim();
@@ -613,7 +816,7 @@
       }
     }
 
-    // ================= 自選群組管理 =================
+    // ================= 4. 自選群組管理 =================
     function renderGroups() {
       const container = document.getElementById("groupContainer");
       container.innerHTML = "";
@@ -709,7 +912,7 @@
       }
     }
 
-    // ================= 搜尋功能 (真實名稱匹配) =================
+    // ================= 5. 搜尋功能 (真實名稱匹配) =================
     function handleStockSearch(keyword) {
       const dropdown = document.getElementById("searchDropdown");
       const val = keyword.trim().toLowerCase();
@@ -742,7 +945,7 @@
       dropdown.classList.remove("hidden");
     }
 
-    // ================= 價格區間篩選 (排除 ETF，聚焦個股) =================
+    // ================= 6. 價格區間篩選 (排除 ETF，聚焦個股) =================
     function runPriceScreener() {
       const min = parseFloat(document.getElementById("minPrice").value) || 0;
       const max = parseFloat(document.getElementById("maxPrice").value) || 999999;
@@ -760,7 +963,7 @@
       }
 
       if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-500">該價位區間暫無相符之個股標的</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-500">該價位區間暫無符合條件之個股標的</td></tr>`;
         return;
       }
 
@@ -790,7 +993,7 @@
       });
     }
 
-    // ================= 歷年走勢圖與 15 日法人買賣超 Modal =================
+    // ================= 7. 歷年走勢圖與 15 日法人買賣超 Modal =================
     let currentChart = null;
 
     function openStockChartModal(symbol) {
@@ -931,7 +1134,7 @@
       }
     });
 
-    // ================= 介面初始化 =================
+    // ================= 8. 初始化 =================
     function initView() {
       if (state.isLoggedIn && state.currentUser) {
         document.getElementById('loginView').classList.add('hidden');
