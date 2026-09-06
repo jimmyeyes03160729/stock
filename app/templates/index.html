@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>智慧股票戰情系統 v2.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .flash-red { animation: flashRed 1s; }
+        .flash-green { animation: flashGreen 1s; }
+        @keyframes flashRed { 0% { background-color: rgba(239, 68, 68, 0.4); } 100% { background-color: transparent; } }
+        @keyframes flashGreen { 0% { background-color: rgba(34, 197, 94, 0.4); } 100% { background-color: transparent; } }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+        <header class="flex justify-between items-center border-b border-slate-700 pb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-white tracking-wider">智慧台股分析戰情系統</h1>
+                <p class="text-xs text-slate-400 mt-1">版本: <span class="text-sky-400 font-semibold">v2.1.0</span> (向下相容 v1.x) | 即時連線狀態: <span id="wsStatus" class="text-yellow-400">連線中...</span></p>
+            </div>
+        </header>
+
+        <div class="bg-slate-800 rounded-xl p-5 border-2 border-indigo-500/40 shadow-lg relative">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <h2 class="text-lg font-bold text-slate-200">即時大盤指數儀表板</h2>
+                    <span class="text-xs bg-slate-700 text-slate-400 px-2 py-0.5 rounded">系統預設 (固定無法刪除)</span>
+                </div>
+                <div class="text-xs text-slate-400">成交預估: <span id="marketVolume">3,450 億</span></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4" id="marketBox">
+                <div class="bg-slate-900/60 p-4 rounded-lg">
+                    <div class="text-sm text-slate-400">加權指數 (TAIEX)</div>
+                    <div class="text-3xl font-extrabold mt-1" id="marketPrice">--</div>
+                </div>
+                <div class="bg-slate-900/60 p-4 rounded-lg">
+                    <div class="text-sm text-slate-400">漲跌點數</div>
+                    <div class="text-2xl font-bold mt-1" id="marketChange">--</div>
+                </div>
+                <div class="bg-slate-900/60 p-4 rounded-lg">
+                    <div class="text-sm text-slate-400">漲跌幅</div>
+                    <div class="text-2xl font-bold mt-1" id="marketPct">--</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-bold text-base text-slate-200">個股自訂群組</h2>
+                    <button onclick="createNewGroup()" class="text-xs bg-indigo-600 hover:bg-indigo-500 px-2.5 py-1.5 rounded text-white font-medium">+ 新增群組</button>
+                </div>
+                <div id="groupContainer" class="space-y-3">
+                    </div>
+            </div>
+
+            <div class="lg:col-span-2 bg-slate-800 rounded-xl p-5 border border-slate-700 space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                    <h2 class="font-bold text-base text-slate-200">看漲條件篩選推薦系統</h2>
+                    <div class="flex items-center gap-2">
+                        <input id="minPrice" type="number" placeholder="最低價" class="bg-slate-900 border border-slate-600 text-xs px-2 py-1.5 rounded w-24 text-white">
+                        <span class="text-slate-400 text-xs">~</span>
+                        <input id="maxPrice" type="number" placeholder="最高價" class="bg-slate-900 border border-slate-600 text-xs px-2 py-1.5 rounded w-24 text-white">
+                        <button onclick="fetchBullishRecommendations()" class="text-xs bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded text-white font-medium">篩選推薦</button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-900 text-slate-400 text-xs uppercase">
+                            <tr>
+                                <th class="p-2.5">代號/名稱</th>
+                                <th class="p-2.5">現價</th>
+                                <th class="p-2.5">綜合評價</th>
+                                <th class="p-2.5">看漲評分</th>
+                                <th class="p-2.5">日線信號</th>
+                                <th class="p-2.5">月線信號</th>
+                                <th class="p-2.5">季線信號</th>
+                                <th class="p-2.5">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recommendationTable" class="divide-y divide-slate-700">
+                            <tr><td colspan="8" class="p-4 text-center text-slate-500">輸入價格區間後點擊篩選</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="detailCard" class="bg-slate-800 rounded-xl p-5 border border-slate-700 hidden space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 class="font-bold text-lg text-white" id="detailStockTitle">個股分析</h3>
+                <button onclick="document.getElementById('detailCard').classList.add('hidden')" class="text-slate-400 hover:text-white">&times; 關閉</button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="text-sm font-semibold text-sky-400 mb-2">歷年股利發放政策</h4>
+                    <table class="w-full text-xs text-left bg-slate-900 rounded-lg overflow-hidden">
+                        <thead class="bg-slate-950 text-slate-400">
+                            <tr>
+                                <th class="p-2">年度</th>
+                                <th class="p-2">現金股利 (元)</th>
+                                <th class="p-2">股票股利 (股)</th>
+                                <th class="p-2">殖利率 (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dividendTable" class="divide-y divide-slate-800">
+                            </tbody>
+                    </table>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-semibold text-sky-400 mb-2">多週期技術指標診斷 (日線 / 月線 / 季線)</h4>
+                    <div id="cycleAnalysisBox" class="space-y-2 text-xs">
+                        </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // WebSocket 連線與即時大盤更新
+        const wsUrl = `ws://${window.location.host}/ws/market`;
+        const socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => {
+            document.getElementById("wsStatus").textContent = "即時連線中";
+            document.getElementById("wsStatus").className = "text-emerald-400";
+        };
+
+        socket.onclose = () => {
+            document.getElementById("wsStatus").textContent = "已斷線";
+            document.getElementById("wsStatus").className = "text-rose-400";
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === "MARKET_TICK") {
+                const m = data.market_data;
+                const pElem = document.getElementById("marketPrice");
+                const cElem = document.getElementById("marketChange");
+                const pctElem = document.getElementById("marketPct");
+
+                pElem.textContent = m.price.toFixed(2);
+                cElem.textContent = (m.change > 0 ? "+" : "") + m.change.toFixed(2);
+                pctElem.textContent = (m.pct_change > 0 ? "+" : "") + m.pct_change.toFixed(2) + "%";
+
+                // 台股色彩慣例：上漲紅、下跌綠
+                const colorClass = m.change >= 0 ? "text-red-500" : "text-emerald-400";
+                const flashClass = m.change >= 0 ? "flash-red" : "flash-green";
+
+                pElem.className = `text-3xl font-extrabold mt-1 ${colorClass} ${flashClass}`;
+                cElem.className = `text-2xl font-bold mt-1 ${colorClass}`;
+                pctElem.className = `text-2xl font-bold mt-1 ${colorClass}`;
+
+                setTimeout(() => pElem.classList.remove(flashClass), 1000);
+            }
+        };
+
+        // 載入自選群組
+        async function loadWatchlists() {
+            const res = await fetch('/api/v2/watchlists');
+            const data = await res.json();
+            const container = document.getElementById("groupContainer");
+            container.innerHTML = "";
+
+            data.forEach(grp => {
+                const div = document.createElement("div");
+                div.className = "p-3 bg-slate-900 rounded-lg border border-slate-700/60";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-semibold text-xs text-indigo-300">${grp.name} (${grp.items.length})</span>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5">
+                        ${grp.items.map(it => `
+                            <span onclick="viewStockDetails('${it.symbol}', '${it.name}')" class="cursor-pointer bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-xs text-slate-200 border border-slate-700">
+                                ${it.symbol} ${it.name}
+                            </span>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function createNewGroup() {
+            const name = prompt("請輸入新群組名稱 (例如：AI伺服器供應鏈、高股息):");
+            if (!name) return;
+            await fetch('/api/v2/watchlists', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            loadWatchlists();
+        }
+
+        // 價格區間推薦篩選
+        async function fetchBullishRecommendations() {
+            const min = document.getElementById("minPrice").value || 0;
+            const max = document.getElementById("maxPrice").value || 99999;
+            const res = await fetch(`/api/v2/screener/bullish?min_price=${min}&max_price=${max}`);
+            const data = await res.json();
+
+            const tbody = document.getElementById("recommendationTable");
+            tbody.innerHTML = "";
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-500">此價位區間暫無符合看漲條件之標的</td></tr>`;
+                return;
+            }
+
+            data.forEach(s => {
+                const tr = document.createElement("tr");
+                tr.className = "hover:bg-slate-700/40 cursor-pointer";
+                tr.innerHTML = `
+                    <td class="p-2.5 font-bold text-white">${s.symbol} ${s.name}</td>
+                    <td class="p-2.5 text-slate-200">$${s.price}</td>
+                    <td class="p-2.5"><span class="bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded text-xs font-semibold">${s.overall_signal_zh}</span></td>
+                    <td class="p-2.5 font-bold text-amber-400">${s.score} 分</td>
+                    <td class="p-2.5 text-xs text-slate-300">${s.daily_signal}</td>
+                    <td class="p-2.5 text-xs text-slate-300">${s.monthly_signal}</td>
+                    <td class="p-2.5 text-xs text-slate-300">${s.quarterly_signal}</td>
+                    <td class="p-2.5">
+                        <button onclick="viewStockDetails('${s.symbol}', '${s.name}')" class="text-xs bg-sky-600 hover:bg-sky-500 text-white px-2 py-1 rounded">查看詳情</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 查看個股詳情 (股利 + 日/月/季線分析)
+        async function viewStockDetails(symbol, name) {
+            const card = document.getElementById("detailCard");
+            document.getElementById("detailStockTitle").textContent = `${symbol} ${name} - 綜合分析報表`;
+            card.classList.remove("hidden");
+
+            // 抓取股利
+            const divRes = await fetch(`/api/v2/stocks/${symbol}/dividends`);
+            const divData = await divRes.json();
+            const divTbody = document.getElementById("dividendTable");
+            divTbody.innerHTML = divData.length ? divData.map(d => `
+                <tr>
+                    <td class="p-2">${d.year}</td>
+                    <td class="p-2 text-emerald-400">$${d.cash_dividend}</td>
+                    <td class="p-2">$${d.stock_dividend}</td>
+                    <td class="p-2 text-amber-400">${d.yield_rate}%</td>
+                </tr>
+            `).join('') : `<tr><td colspan="4" class="p-2 text-center text-slate-500">暫無股利紀錄</td></tr>`;
+
+            // 抓取多週期分析
+            const anaRes = await fetch(`/api/v2/stocks/${symbol}/multi-cycle-analysis`);
+            const anaData = await anaRes.json();
+            const cycleBox = document.getElementById("cycleAnalysisBox");
+
+            if (anaData.timeframes) {
+                cycleBox.innerHTML = `
+                    <div class="p-2.5 bg-slate-900 rounded border border-slate-800">
+                        <div class="flex justify-between font-semibold"><span>日線 (短期趨勢)</span><span class="text-red-400">${anaData.timeframes.daily.signal_zh}</span></div>
+                        <div class="text-slate-400 text-[11px] mt-1">5日均線: ${anaData.timeframes.daily.ma5} | 20日均線: ${anaData.timeframes.daily.ma20}</div>
+                    </div>
+                    <div class="p-2.5 bg-slate-900 rounded border border-slate-800">
+                        <div class="flex justify-between font-semibold"><span>月線 (中期趨勢)</span><span class="text-red-400">${anaData.timeframes.monthly.signal_zh}</span></div>
+                        <div class="text-slate-400 text-[11px] mt-1">5月均線: ${anaData.timeframes.monthly.ma5} | 20月均線: ${anaData.timeframes.monthly.ma20}</div>
+                    </div>
+                    <div class="p-2.5 bg-slate-900 rounded border border-slate-800">
+                        <div class="flex justify-between font-semibold"><span>季線 (長期趨勢)</span><span class="text-red-400">${anaData.timeframes.quarterly.signal_zh}</span></div>
+                        <div class="text-slate-400 text-[11px] mt-1">綜合加權分數: ${anaData.weighted_score} 分</div>
+                    </div>
+                `;
+            }
+        }
+
+        // 初始化
+        loadWatchlists();
+        fetchBullishRecommendations();
+    </script>
+</body>
+</html>
