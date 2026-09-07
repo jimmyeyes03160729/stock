@@ -12,8 +12,7 @@ if not api_token:
 finlab.login(api_token)
 
 def sync():
-    print("正在透過 FinLab 下載數據並執行體積優化...")
-    # 抓取近 400 天數據即可計算 250 日日線與各項指標
+    print("正在透過 FinLab 下載數據並計算觸底反彈多因子...")
     data.truncate_start = (datetime.now() - pd.Timedelta(days=450)).strftime('%Y-%m-%d')
     
     close = data.get('price:收盤價')
@@ -27,6 +26,25 @@ def sync():
     pe = data.get('price_earning_ratio:本益比')
     pb = data.get('price_earning_ratio:股價淨值比')
     rev_yoy = data.get('monthly_revenue:去年同月增減(%)')
+
+    # 1. 均線與觸底反彈指標矩陣運算
+    sma20 = close.average(20)
+    sma60 = close.average(60)
+    vol20 = vol.average(20)
+    
+    # 條件 1: 收盤站穩 20MA & 60MA
+    above_ma = (close > sma20) & (close > sma60)
+    # 條件 2: 近 3 天最低價曾靠近或跌破 20MA 或 60MA (2% 緩衝)
+    hit_ma20 = low.rolling(3).min() < (sma20 * 1.02)
+    hit_ma60 = low.rolling(3).min() < (sma60 * 1.02)
+    recently_hit = hit_ma20 | hit_ma60
+    # 條件 3: 今日收紅且量增
+    rebound_strength = (close > open_p) & (vol > vol20)
+    # 條件 4: 20日動能強度 (Momo)
+    momo_20 = close / close.shift(20)
+    
+    # 綜合反彈標記
+    rebound_matrix = above_ma & recently_hit & rebound_strength
 
     info_map = {}
     try:
@@ -59,15 +77,20 @@ def sync():
     latest_pb = pb.iloc[-1] if not pb.empty else None
     latest_rev = rev_yoy.iloc[-1] if not rev_yoy.empty else None
 
-    # 取得成交量前 300 大或熱門指標股（其餘股票使用即時端點載入，避免檔案破百MB）
+    # 最新日反彈判別
+    latest_rebound = rebound_matrix.iloc[-1]
+    latest_momo = momo_20.iloc[-1]
+
+    # 取成交量前 300 大內嵌走勢，防檔案膨脹
     avg_vol = vol.iloc[-20:].mean() if not vol.empty else pd.Series()
     top_volume_stocks = set(avg_vol.nlargest(300).index.tolist())
 
     stocks = []
-    # 取近 250 個交易日
     history_slice = slice(-250, None)
     sliced_close = close.iloc[history_slice]
     date_strs = [d.strftime('%Y-%m-%d') for d in sliced_close.index]
+
+    rebound_candidates = []
 
     for symbol in latest_close.index:
         sym = str(symbol).strip()
@@ -101,7 +124,10 @@ def sync():
         chip_score = max(-0.2, min(0.2, net15 / 5000.0))
         ai_factor = round(float(min(0.96, max(0.12, 0.50 + growth_score + value_score + chip_score))), 3)
 
-        # 🌟 僅對前 300 大熱門標的內嵌精準日 K 線（有效將檔案由 104MB 壓縮至約 5~8MB）
+        # 觸底反彈屬性判定
+        is_reb = bool(latest_rebound[sym]) if sym in latest_rebound and pd.notna(latest_rebound[sym]) else False
+        momo_val = round(float(latest_momo[sym]), 3) if sym in latest_momo and pd.notna(latest_momo[sym]) else 1.0
+
         kline = []
         if sym in top_volume_stocks and sym in open_p.columns and sym in high_p.columns and sym in low_p.columns:
             o_s = open_p[sym].iloc[history_slice]
@@ -120,7 +146,7 @@ def sync():
                         "close": round(float(c_val), 2)
                     })
 
-        stocks.append({
+        item = {
             "symbol": sym,
             "name": c_name,
             "category": cat,
@@ -130,10 +156,15 @@ def sync():
             "rev_yoy": round(rev_val, 1),
             "cnnFactor": ai_factor,
             "net15Total": net15,
+            "isRebound": is_reb,
+            "momo20": momo_val,
             "kline": kline
-        })
+        }
+        stocks.append(item)
+        if is_reb:
+            rebound_candidates.append(item)
 
-    print(f"收錄 {len(stocks)} 檔個股，準備產出精簡 JSON...")
+    print(f"篩選完成：全市場 {len(stocks)} 檔，今日符合「觸底反彈」標的共 {len(rebound_candidates)} 檔！")
 
     output_data = {
         "updated_at": latest_date,
@@ -149,7 +180,7 @@ def sync():
         json.dump(output_data, f, ensure_ascii=False, separators=(',', ':'))
 
     size_mb = os.path.getsize("market_data.json") / (1024 * 1024)
-    print(f"✅ market_data.json 產出成功！檔案大小: {size_mb:.2f} MB (安全低於 100MB 限制)")
+    print(f"✅ market_data.json 已更新！大小: {size_mb:.2f} MB")
 
 if __name__ == "__main__":
     sync()
