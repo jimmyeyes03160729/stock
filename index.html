@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>台股發大財 v1.30 - 瀏覽器原生量化回測與深度戰情室</title>
+  <title>台股發大財 v1.31 - 深度量化神經網路戰情室</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lightweight Charts (本地高效渲染、無版權阻擋) -->
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 
   <!-- Firebase SDK -->
@@ -87,7 +88,7 @@
         <h1 class="text-xl font-bold text-amber-500/90 flex items-center justify-center gap-2">
           <span>⚡</span> 台股發大財
         </h1>
-        <p class="text-xs text-zinc-500 mt-1">深度神經網路與量化回測戰情室 (v1.30)</p>
+        <p class="text-xs text-zinc-500 mt-1">深度神經網路與量化回測戰情室 (v1.31)</p>
       </div>
 
       <button onclick="handleGoogleSignIn()" class="w-full flex items-center justify-center gap-2 bg-zinc-800 border border-zinc-700 py-2.5 rounded-xl font-medium text-xs text-zinc-200 hover:bg-zinc-700 transition">
@@ -129,7 +130,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base font-bold text-zinc-100 tracking-wide">台股發大財</h1>
-            <span id="systemVersionBadge" class="bg-amber-950/60 text-amber-400 border border-amber-700/60 px-2 py-0.5 rounded text-[10px] font-mono font-bold">v1.30 Quant</span>
+            <span id="systemVersionBadge" class="bg-amber-950/60 text-amber-400 border border-amber-700/60 px-2 py-0.5 rounded text-[10px] font-mono font-bold">v1.31 Active</span>
           </div>
           <p class="text-[11px] text-zinc-400 mt-0.5">
             席位：<span id="currentAccountBadge" class="font-bold text-zinc-200 font-mono">--</span> | 
@@ -152,7 +153,7 @@
       </div>
     </header>
 
-    <!-- 🌟 網頁現場量化回測模擬器 (In-Browser Quant Backtest Engine) -->
+    <!-- 網頁現場量化回測模擬器 -->
     <section class="bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 p-4 rounded-2xl border border-amber-500/30 shadow-lg space-y-3">
       <div class="flex flex-wrap items-center justify-between border-b border-zinc-800 pb-2.5 gap-2">
         <div class="flex items-center gap-2">
@@ -391,11 +392,11 @@
   </div>
 
   <footer class="py-3 text-center text-[11px] text-zinc-600 font-mono">
-    台股發大財 v1.30 • 深度量化神經網路戰情室
+    台股發大財 v1.31 • 深度量化神經網路戰情室
   </footer>
 
   <script>
-    const APP_VERSION = "v1.30";
+    const APP_VERSION = "v1.31";
     
     let REAL_TAIWAN_STOCKS = [];
     let MARKET_STATE = { price: 46551.13, change: 693.47, pct: "+1.51%" };
@@ -419,14 +420,13 @@
       "1513": { name: "中興電", cat: "電機機械", pe: 19.5, rev: 21.0 }
     };
 
-    // 🌟 網頁前端原生量化策略回測函式
+    // 網頁前端原生量化策略回測函式
     function runInBrowserBacktest() {
       const revThreshold = parseFloat(document.getElementById("btRevYoy").value) || 0;
       const peMax = parseFloat(document.getElementById("btMaxPe").value) || 999;
       const minAi = parseFloat(document.getElementById("btAiScore").value) || 0.50;
       const topN = parseInt(document.getElementById("btHoldCount").value) || 10;
 
-      // 1. 篩選符合條件標的
       const qualified = REAL_TAIWAN_STOCKS.filter(s => {
         const rev = s.rev_yoy !== undefined ? s.rev_yoy : 10;
         const pe = s.pe !== undefined ? s.pe : 18;
@@ -434,15 +434,12 @@
         return rev >= revThreshold && pe > 0 && pe <= peMax && factor >= minAi;
       });
 
-      // 依照綜合評分排序
       qualified.sort((a, b) => parseFloat(b.cnnFactor) - parseFloat(a.cnnFactor));
       const portfolio = qualified.slice(0, topN);
 
-      // 2. 模擬多期滾動平均績效
       let totalReturn = 0;
       let winCount = 0;
-      portfolio.forEach((stock, idx) => {
-        // 利用個股 15 日籌碼與特徵估算近期平均年化投報
+      portfolio.forEach((stock) => {
         const ret = ((parseFloat(stock.cnnFactor) - 0.45) * 48) + ((stock.rev_yoy || 10) * 0.25);
         totalReturn += ret;
         if (ret > 0) winCount++;
@@ -454,13 +451,11 @@
       const winRate = portfolio.length > 0 ? ((winCount / portfolio.length) * 100) : 0;
       const sharpe = (cagr / Math.abs(mdd) * 0.85).toFixed(2);
 
-      // 3. 更新儀表板數據
       document.getElementById("btCagr").textContent = `+${cagr.toFixed(2)}%`;
       document.getElementById("btMdd").textContent = `${mdd.toFixed(2)}%`;
       document.getElementById("btWinRate").textContent = `${winRate.toFixed(1)}%`;
       document.getElementById("btSharpe").textContent = sharpe;
 
-      // 4. 更新選股池標籤
       const container = document.getElementById("btSelectedHoldings");
       if (portfolio.length === 0) {
         container.innerHTML = `<span class="text-rose-400">目前條件過嚴，無標的符合</span>`;
@@ -473,27 +468,69 @@
       }
     }
 
-    async function fetchRealTaiexTick() {
-      const targetUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/^TWII?interval=1d&range=1d';
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-      
-      try {
-        const res = await fetch(proxyUrl);
-        const data = await res.json();
-        const meta = data.chart.result[0].meta;
-        const curPrice = meta.regularMarketPrice;
-        const prevClose = meta.chartPreviousClose || meta.previousClose;
-        const change = curPrice - prevClose;
-        const pct = (change / prevClose) * 100;
+    // 🌟 延長交易日監聽窗口至 13:45，確保順利接收 13:30 集合競價撮合的最終收盤價
+    function isTaiwanStockMarketOpen() {
+      const now = new Date();
+      const twNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + 28800000);
+      const day = twNow.getDay();
+      if (day === 0 || day === 6) return false;
+      const mins = twNow.getHours() * 60 + twNow.getMinutes();
+      return mins >= 540 && mins <= 825; // 09:00 (540分) ~ 13:45 (825分)
+    }
 
-        if (curPrice > 10000) {
-          MARKET_STATE.price = curPrice;
-          MARKET_STATE.change = change;
-          MARKET_STATE.pct = `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+    // 🌟 雙備援即時大盤獲取機制 (TWSE 官方優先 + Yahoo Finance 備援)
+    async function fetchRealTaiexTick() {
+      let updated = false;
+
+      // 1. 優先嘗試 TWSE 官方即時加權指數端點 (即時無延遲)
+      try {
+        const twseUrl = `https://corsproxy.io/?${encodeURIComponent('https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_t00.tw')}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch(twseUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.msgArray?.[0]) {
+            const info = data.msgArray[0];
+            const curPrice = parseFloat(info.z || info.y);
+            const prevClose = parseFloat(info.y);
+            if (curPrice > 10000) {
+              const change = curPrice - prevClose;
+              const pct = (change / prevClose) * 100;
+              MARKET_STATE.price = curPrice;
+              MARKET_STATE.change = change;
+              MARKET_STATE.pct = `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+              renderMarketUI();
+              updated = true;
+            }
+          }
         }
-        renderMarketUI();
-      } catch (e) {
-        renderMarketUI();
+      } catch (e) {}
+
+      // 2. 若官方線路繁忙，退回 Yahoo Finance 備援
+      if (!updated) {
+        try {
+          const targetUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/^TWII?interval=1d&range=1d';
+          const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+          const res = await fetch(proxyUrl);
+          const data = await res.json();
+          const meta = data.chart.result[0].meta;
+          const curPrice = meta.regularMarketPrice;
+          const prevClose = meta.chartPreviousClose || meta.previousClose;
+          const change = curPrice - prevClose;
+          const pct = (change / prevClose) * 100;
+
+          if (curPrice > 10000) {
+            MARKET_STATE.price = curPrice;
+            MARKET_STATE.change = change;
+            MARKET_STATE.pct = `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+          }
+          renderMarketUI();
+        } catch (e) {
+          renderMarketUI();
+        }
       }
     }
 
@@ -557,7 +594,7 @@
             populateCategoryOptions();
             badge.textContent = `FinLab 同步完成：共收錄 ${REAL_TAIWAN_STOCKS.length} 檔純台灣個股`;
             resetAndRunScreener();
-            runInBrowserBacktest(); // 首次載入自動運算入門策略
+            runInBrowserBacktest();
             return;
           }
         }
@@ -618,15 +655,6 @@
       const q = String(query).trim().toLowerCase();
       const match = REAL_TAIWAN_STOCKS.find(s => s.symbol.toLowerCase() === q || s.name.toLowerCase().includes(q));
       return match ? { symbol: match.symbol, name: match.name, display: `${match.name} (${match.symbol})` } : { symbol: query, name: query, display: `${query} (${query})` };
-    }
-
-    function isTaiwanStockMarketOpen() {
-      const now = new Date();
-      const twNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + 28800000);
-      const day = twNow.getDay();
-      if (day === 0 || day === 6) return false;
-      const mins = twNow.getHours() * 60 + twNow.getMinutes();
-      return mins >= 540 && mins <= 810;
     }
 
     function fetchMarketTick(force = false) {
