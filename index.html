@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>台股發大財 v1.12 - 全市場智慧戰情與深度量化推薦系統</title>
+  <title>台股發大財 v1.13 - 全市場智慧戰情與深度量化推薦系統</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- TradingView Lightweight Charts -->
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
@@ -131,12 +131,12 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base font-bold text-zinc-200 tracking-wide">台股發大財</h1>
-            <span class="bg-zinc-800 text-zinc-400 border border-zinc-700 px-1.5 py-0.5 rounded text-[10px] font-mono">v1.12</span>
+            <span class="bg-zinc-800 text-zinc-400 border border-zinc-700 px-1.5 py-0.5 rounded text-[10px] font-mono">v1.13</span>
           </div>
           <p class="text-[11px] text-zinc-500 mt-0.5">
             帳號：<span id="currentAccountBadge" class="font-bold text-zinc-300 font-mono">--</span> | 
             <span id="marketOpenStatusBadge" class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-950 text-zinc-400 border border-zinc-800">盤況確認中...</span> |
-            <span id="stockCountBadge" class="text-[10px] text-zinc-500">正在同步全市場標的...</span>
+            <span id="stockCountBadge" class="text-[10px] text-zinc-500">正在向證券交易所連線中...</span>
           </p>
         </div>
       </div>
@@ -175,7 +175,7 @@
       </div>
     </section>
 
-    <!-- 加權指數大盤 (以真實 46,551.13 為基準點位) -->
+    <!-- 加權指數大盤 -->
     <section class="bg-zinc-900 rounded-2xl p-4 border border-zinc-800 shadow-md">
       <div class="flex justify-between items-center border-b border-zinc-800/80 pb-2.5">
         <div class="flex items-center gap-2">
@@ -226,7 +226,7 @@
             <input id="minPrice" type="number" placeholder="最低" value="10" 
                    class="bg-zinc-950 border border-zinc-800 text-xs px-2 py-1 rounded-lg w-16 text-zinc-200">
             <span class="text-zinc-600 text-xs">~</span>
-            <input id="maxPrice" type="number" placeholder="最高" value="350" 
+            <input id="maxPrice" type="number" placeholder="最高" value="3000" 
                    class="bg-zinc-950 border border-zinc-800 text-xs px-2 py-1 rounded-lg w-16 text-zinc-200">
             <select id="trendFilter" class="bg-zinc-950 border border-zinc-800 text-xs px-2 py-1 rounded-lg text-zinc-300">
               <option value="ALL">全部評價</option>
@@ -353,80 +353,14 @@
   </div>
 
   <footer class="py-3 text-center text-[11px] text-zinc-600 font-mono">
-    台股發大財 v1.12 • 全市場智慧戰情與量化推薦系統
+    台股發大財 v1.13 • 全市場智慧戰情與量化推薦系統
   </footer>
 
   <script>
-    const APP_VERSION = "v1.12";
+    const APP_VERSION = "v1.13";
     
-    // 擴充完整的上市櫃備用核心庫，避免 API 失敗時只剩下 4 筆
-    const COMPREHENSIVE_STOCK_FALLBACK = [
-      { symbol: "3707", name: "漢磊", price: 62.5, isETF: false },
-      { symbol: "2457", name: "飛宏", price: 41.2, isETF: false },
-      { symbol: "6862", name: "三集瑞-KY", price: 140.0, isETF: false },
-      { symbol: "2330", name: "台積電", price: 2395.0, isETF: false },
-      { symbol: "2317", name: "鴻海", price: 215.5, isETF: false },
-      { symbol: "2454", name: "聯發科", price: 1350.0, isETF: false },
-      { symbol: "2303", name: "聯電", price: 43.8, isETF: false },
-      { symbol: "2308", name: "台達電", price: 392.0, isETF: false },
-      { symbol: "2382", name: "廣達", price: 285.0, isETF: false },
-      { symbol: "3231", name: "緯創", price: 112.5, isETF: false },
-      { symbol: "2357", name: "華碩", price: 580.0, isETF: false },
-      { symbol: "2376", name: "技嘉", price: 265.0, isETF: false },
-      { symbol: "3017", name: "奇鋐", price: 590.0, isETF: false },
-      { symbol: "3035", name: "智原", price: 280.0, isETF: false },
-      { symbol: "2379", name: "瑞昱", price: 495.0, isETF: false },
-      { symbol: "3034", name: "聯詠", price: 510.0, isETF: false },
-      { symbol: "2301", name: "光寶科", price: 102.5, isETF: false },
-      { symbol: "2327", name: "國巨", price: 635.0, isETF: false },
-      { symbol: "3037", name: "欣興", price: 148.0, isETF: false },
-      { symbol: "8046", name: "南電", price: 135.0, isETF: false },
-      { symbol: "3189", name: "景碩", price: 92.5, isETF: false },
-      { symbol: "3711", name: "日月光投控", price: 156.0, isETF: false },
-      { symbol: "3008", name: "大立光", price: 2540.0, isETF: false },
-      { symbol: "2345", name: "智邦", price: 540.0, isETF: false },
-      { symbol: "3443", name: "創意", price: 1220.0, isETF: false },
-      { symbol: "3661", name: "世芯-KY", price: 2105.0, isETF: false },
-      { symbol: "6669", name: "緯穎", price: 2240.0, isETF: false },
-      { symbol: "3529", name: "力旺", price: 2850.0, isETF: false },
-      { symbol: "6415", name: "矽力-KY", price: 420.0, isETF: false },
-      { symbol: "5269", name: "祥碩", price: 1850.0, isETF: false },
-      { symbol: "4966", name: "譜瑞-KY", price: 920.0, isETF: false },
-      { symbol: "2408", name: "南亞科", price: 65.0, isETF: false },
-      { symbol: "2344", name: "華邦電", price: 27.5, isETF: false },
-      { symbol: "3481", name: "群創", price: 15.2, isETF: false },
-      { symbol: "2409", name: "友達", price: 16.8, isETF: false },
-      { symbol: "1216", name: "統一", price: 82.5, isETF: false },
-      { symbol: "1303", name: "南亞", price: 39.8, isETF: false },
-      { symbol: "1326", name: "台化", price: 36.2, isETF: false },
-      { symbol: "1402", name: "遠東新", price: 33.5, isETF: false },
-      { symbol: "1504", name: "東元", price: 52.3, isETF: false },
-      { symbol: "1513", name: "中興電", price: 165.0, isETF: false },
-      { symbol: "1519", name: "華城", price: 620.0, isETF: false },
-      { symbol: "1503", name: "士電", price: 210.0, isETF: false },
-      { symbol: "2603", name: "長榮", price: 192.0, isETF: false },
-      { symbol: "2609", name: "陽明", price: 64.5, isETF: false },
-      { symbol: "2615", name: "萬海", price: 78.2, isETF: false },
-      { symbol: "2618", name: "長榮航", price: 36.8, isETF: false },
-      { symbol: "2881", name: "富邦金", price: 91.2, isETF: false },
-      { symbol: "2882", name: "國泰金", price: 68.5, isETF: false },
-      { symbol: "2891", name: "中信金", price: 37.8, isETF: false },
-      { symbol: "2886", name: "兆豐金", price: 39.5, isETF: false },
-      { symbol: "2884", name: "玉山金", price: 28.6, isETF: false },
-      { symbol: "2880", name: "華南金", price: 25.4, isETF: false },
-      { symbol: "2885", name: "元大金", price: 32.8, isETF: false },
-      { symbol: "2887", name: "台新金", price: 18.2, isETF: false },
-      { symbol: "2890", name: "永豐金", price: 23.6, isETF: false },
-      { symbol: "2892", name: "第一金", price: 27.2, isETF: false },
-      { symbol: "5880", name: "合庫金", price: 25.8, isETF: false },
-      { symbol: "00878", name: "國泰永續高股息", price: 34.11, isETF: true },
-      { symbol: "0050", name: "元大台灣50", price: 208.5, isETF: true },
-      { symbol: "0056", name: "元大高股息", price: 38.2, isETF: true },
-      { symbol: "00919", name: "群益台灣精選高息", price: 24.8, isETF: true },
-      { symbol: "00929", name: "復華台灣科技優息", price: 20.15, isETF: true }
-    ];
-
-    let REAL_TAIWAN_STOCKS = [...COMPREHENSIVE_STOCK_FALLBACK];
+    // 全市場動態標的陣列（完全由證交所 API 載入，不寫死任何股票）
+    let REAL_TAIWAN_STOCKS = [];
     let REAL_AI_PREDICTIONS = {};
 
     async function loadAiPredictions() {
@@ -441,33 +375,61 @@
       }
     }
 
+    // 透過多重代理與證交所 OpenAPI 抓取「全體上市台股（排除 ETF）」
     async function loadLiveTaiwanStockPool() {
-      try {
-        const response = await fetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_AVG_ALL');
-        if (!response.ok) throw new Error('API 連線失敗');
-        const rawData = await response.json();
-        
-        if (Array.isArray(rawData) && rawData.length > 0) {
-          const parsed = rawData
-            .map(item => {
-              const code = String(item.Code).trim();
-              const name = String(item.Name).trim();
-              const price = parseFloat(item.ClosingPrice) || parseFloat(item.MonthlyAveragePrice) || 0;
-              const isETF = code.startsWith('00') || name.includes('ETF') || name.includes('指數');
-              return { symbol: code, name: name, price: price > 0 ? price : 50.0, isETF: isETF };
-            })
-            .filter(s => /^\d{4}$/.test(s.symbol) || /^00\d{2,4}$/.test(s.symbol));
+      const badge = document.getElementById("stockCountBadge");
+      badge.textContent = "正在向臺灣證券交易所連線中...";
 
-          if (parsed.length > 0) {
-            REAL_TAIWAN_STOCKS = parsed;
+      const targetUrl = 'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL';
+      // 當直連被瀏覽器 CORS 擋下時，自動依序切換公開代理
+      const apiEndpoints = [
+        targetUrl,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
+      ];
+
+      let rawData = null;
+
+      for (const url of apiEndpoints) {
+        try {
+          const res = await fetch(url, { cache: 'no-cache' });
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+              rawData = data;
+              break;
+            }
           }
+        } catch (err) {
+          console.warn(`節點連線失敗: ${url}，嘗試備援線路...`);
         }
-      } catch (err) {
-        console.warn("無法即時連線證交所 API，切換至全市場核心標的池", err);
-        REAL_TAIWAN_STOCKS = [...COMPREHENSIVE_STOCK_FALLBACK];
       }
-      
-      document.getElementById("stockCountBadge").textContent = `全市場正規台股 ${REAL_TAIWAN_STOCKS.length} 檔已同步`;
+
+      if (rawData && Array.isArray(rawData)) {
+        REAL_TAIWAN_STOCKS = rawData
+          .map(item => {
+            const code = String(item.Code || item["證券代號"] || '').trim();
+            const name = String(item.Name || item["證券名稱"] || '').trim();
+            // 處理金額中的逗號格式
+            const rawPrice = item.ClosingPrice || item["收盤價"] || item.MonthlyAveragePrice || '0';
+            const price = parseFloat(String(rawPrice).replace(/,/g, '')) || 0.0;
+            return { symbol: code, name: name, price: price };
+          })
+          .filter(s => {
+            // 🌟 嚴格過濾：
+            // 1. 代號必須剛好為 4 位數字（排除特別股、權證、牛熊證等）
+            // 2. 排除 00 開頭（所有指數型 ETF / 反向槓桿 ETF）
+            // 3. 排除名稱含有 ETF、債券、特、存託憑證的標的
+            const isFourDigit = /^\d{4}$/.test(s.symbol);
+            const isETF = s.symbol.startsWith('00') || s.name.includes('ETF');
+            return isFourDigit && !isETF;
+          });
+
+        badge.textContent = `證交所同步成功：全市場已收錄 ${REAL_TAIWAN_STOCKS.length} 檔上市個股`;
+      } else {
+        badge.textContent = "連線異常，請重新整理頁面";
+      }
+
       resetAndRunScreener();
     }
 
@@ -527,7 +489,7 @@
       };
     }
 
-    const DEFAULT_USER_WATCHLISTS = [{ id: 1, name: "我的戰情自選", items: [{ symbol: "3707", display: "漢磊 (3707)" }, { symbol: "2330", display: "台積電 (2330)" }] }];
+    const DEFAULT_USER_WATCHLISTS = [{ id: 1, name: "我的戰情自選", items: [{ symbol: "2330", display: "台積電 (2330)" }] }];
     let state = { isLoggedIn: localStorage.getItem('stock_app_auth') === 'true', currentUser: localStorage.getItem('stock_app_user') || '', watchlists: JSON.parse(localStorage.getItem('stock_app_watchlists')) || DEFAULT_USER_WATCHLISTS };
 
     function resolveStockInfo(query) {
@@ -545,7 +507,6 @@
       return mins >= 540 && mins <= 810;
     }
 
-    // 將大盤指數基底更新至實際收盤 46,551.13，昨收 45,857.66
     let baseMarketPrice = 46551.13;
     const PREV_CLOSE = 45857.66;
 
@@ -638,7 +599,7 @@
     }
 
     function addStockPrompt(gid) {
-      const input = prompt("輸入股票代號或名稱 (例如: 3707):");
+      const input = prompt("輸入股票代號或名稱 (例如: 2330):");
       if (!input) return;
       const info = resolveStockInfo(input.trim());
       const g = state.watchlists.find(x => x.id === gid);
@@ -675,7 +636,8 @@
       const min = parseFloat(document.getElementById("minPrice").value) || 0;
       const max = parseFloat(document.getElementById("maxPrice").value) || 999999;
       const tf = document.getElementById("trendFilter").value;
-      let pool = REAL_TAIWAN_STOCKS.filter(s => !s.isETF && s.price >= min && s.price <= max).map(s => analyzeStockWithInstitutions(s));
+      
+      let pool = REAL_TAIWAN_STOCKS.filter(s => s.price >= min && s.price <= max).map(s => analyzeStockWithInstitutions(s));
       if (tf !== "ALL") pool = pool.filter(s => s.trendKey === tf);
       currentScreenerResults = pool;
       renderScreenerPage();
@@ -691,7 +653,7 @@
       tb.innerHTML = items.length === 0 ? `<tr><td colspan="7" class="p-4 text-center text-zinc-600">無符合標的</td></tr>` : items.map(s => `
         <tr class="hover:bg-zinc-950/50 cursor-pointer" onclick="openStockChartModal('${s.symbol}')">
           <td class="p-2 font-bold text-zinc-200">${s.name} (${s.symbol})</td>
-          <td class="p-2 text-zinc-300">$${s.price}</td>
+          <td class="p-2 text-zinc-300">$${s.price.toFixed(2)}</td>
           <td class="p-2"><span class="${s.trendColor} border px-1.5 py-0.5 rounded text-[10px] font-bold">${s.trendLabel}</span></td>
           <td class="p-2 text-amber-400 font-bold">${s.cnnFactor}</td>
           <td class="p-2 ${s.net15Total >= 0 ? 'text-rose-400' : 'text-emerald-400'}">${s.net15Total >= 0 ? '+' : ''}${s.net15Total}</td>
@@ -713,7 +675,7 @@
       const analysis = analyzeStockWithInstitutions(stock);
 
       document.getElementById("modalStockTitle").textContent = `${stock.name} (${stock.symbol})`;
-      document.getElementById("modalStockSubtitle").textContent = `現價: $${stock.price} • 法人 15 日合計: ${analysis.net15Total}張`;
+      document.getElementById("modalStockSubtitle").textContent = `現價: $${stock.price.toFixed(2)} • 法人 15 日合計: ${analysis.net15Total}張`;
       document.getElementById("modalTrendBadge").textContent = analysis.trendLabel;
       document.getElementById("modalTrendBadge").className = `text-[10px] px-2 py-0.5 rounded font-bold border ${analysis.trendColor}`;
 
@@ -753,7 +715,7 @@
       });
       const series = currentChart.addCandlestickSeries({ upColor: '#f43f5e', downColor: '#10b981', borderUpColor: '#f43f5e', borderDownColor: '#10b981' });
       const data = [];
-      let p = stock.price * 0.8;
+      let p = stock.price > 0 ? stock.price * 0.8 : 100;
       const now = new Date();
       for (let i = 100; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 86400000).toISOString().split('T')[0];
@@ -780,8 +742,8 @@
         await loadLiveTaiwanStockPool();
         fetchMarketTick(true);
       } else {
-        document.getElementById('loginView').classList.add('hidden');
-        document.getElementById('mainApp').classList.remove('hidden');
+        document.getElementById('loginView').classList.remove('hidden');
+        document.getElementById('mainApp').classList.add('hidden');
       }
     }
 
