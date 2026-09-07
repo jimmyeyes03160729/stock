@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>台股發大財 v1.22 - FinLab 雲端同步量化戰情室</title>
+  <title>台股發大財 v1.23 - 產業分類與量化戰情室</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- TradingView Lightweight Charts -->
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 
-  <!-- Firebase SDK 模組 -->
+  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
     import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
@@ -85,7 +84,7 @@
         <h1 class="text-xl font-bold text-amber-500/90 flex items-center justify-center gap-2">
           <span>💰</span> 台股發大財
         </h1>
-        <p class="text-xs text-zinc-500 mt-1">FinLab 實戰量化戰情室 (v1.22)</p>
+        <p class="text-xs text-zinc-500 mt-1">FinLab 實戰量化戰情室 (v1.23)</p>
       </div>
 
       <button onclick="handleGoogleSignIn()" class="w-full flex items-center justify-center gap-2 bg-zinc-800 border border-zinc-700 py-2.5 rounded-xl font-medium text-xs text-zinc-200 hover:bg-zinc-700 transition">
@@ -127,7 +126,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base font-bold text-zinc-200 tracking-wide">台股發大財</h1>
-            <span class="bg-zinc-800 text-zinc-400 border border-zinc-700 px-1.5 py-0.5 rounded text-[10px] font-mono">v1.22 FinLab</span>
+            <span class="bg-zinc-800 text-zinc-400 border border-zinc-700 px-1.5 py-0.5 rounded text-[10px] font-mono">v1.23</span>
           </div>
           <p class="text-[11px] text-zinc-500 mt-0.5">
             帳號：<span id="currentAccountBadge" class="font-bold text-zinc-300 font-mono">--</span> | 
@@ -140,33 +139,15 @@
       <div class="flex items-center gap-2 w-full sm:w-auto">
         <div class="relative flex-1 sm:w-60">
           <input id="searchInput" type="text" oninput="handleStockSearch(this.value)" 
-                 placeholder="搜尋代號或股名 (例如: 2457 飛宏)" 
+                 placeholder="搜尋代號、中文或類別 (如: 飛宏、汽車)" 
                  class="w-full bg-zinc-950 border border-zinc-800 text-xs px-3 py-1.5 rounded-xl text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition">
           <div id="searchDropdown" class="absolute left-0 right-0 top-9 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50 hidden divide-y divide-zinc-800 overflow-hidden max-h-64 overflow-y-auto"></div>
         </div>
-        <button onclick="openAiExplainerModal()" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-3 py-1.5 rounded-xl font-medium transition whitespace-nowrap">
-          💡 模型實證
-        </button>
         <button onclick="handleGlobalLogout()" class="text-xs bg-zinc-950 hover:bg-rose-950/40 text-zinc-400 hover:text-rose-400 border border-zinc-800 px-3 py-1.5 rounded-xl transition whitespace-nowrap">
           登出
         </button>
       </div>
     </header>
-
-    <!-- 視覺模型看板 -->
-    <section class="bg-zinc-900/80 p-3.5 rounded-2xl border border-zinc-800/80 shadow-sm space-y-2.5">
-      <div class="flex flex-wrap justify-between items-center gap-2 border-b border-zinc-800 pb-2">
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-semibold text-zinc-400">資料來源：</span>
-          <span class="text-xs bg-zinc-950 border border-zinc-700 text-zinc-200 px-2 py-1 rounded-lg">
-            FinLab 官方盤後數據 (全台股純個股，排除 ETF)
-          </span>
-        </div>
-        <div class="text-[11px] text-zinc-500 font-mono" id="aiStatusBadge">
-          資料庫狀態：<strong class="text-emerald-400">連線檢查中...</strong>
-        </div>
-      </div>
-    </section>
 
     <!-- 加權指數大盤 -->
     <section class="bg-zinc-900 rounded-2xl p-4 border border-zinc-800 shadow-md">
@@ -207,7 +188,7 @@
         <div id="groupContainer" class="space-y-2.5"></div>
       </div>
 
-      <!-- 價格區間推薦篩選 -->
+      <!-- 價格區間與產業類別推薦篩選 -->
       <div class="lg:col-span-2 bg-zinc-900 rounded-2xl p-3.5 border border-zinc-800 space-y-3 shadow-md">
         <div class="flex flex-wrap justify-between items-center gap-2 border-b border-zinc-800 pb-2">
           <div>
@@ -216,12 +197,16 @@
             </h2>
           </div>
           <div class="flex flex-wrap items-center gap-1.5">
+            <!-- 產業類別篩選 -->
+            <select id="categoryFilter" onchange="resetAndRunScreener()" class="bg-zinc-950 border border-zinc-800 text-xs px-2 py-1 rounded-lg text-zinc-200">
+              <option value="ALL">全部產業</option>
+            </select>
             <input id="minPrice" type="number" placeholder="最低" value="10" 
                    class="bg-zinc-950 border border-zinc-800 text-xs px-2 py-1 rounded-lg w-14 text-zinc-200">
             <span class="text-zinc-600 text-xs">~</span>
             <input id="maxPrice" type="number" placeholder="最高" value="3000" 
                    class="bg-zinc-950 border border-zinc-800 text-xs px-2 py-1 rounded-lg w-16 text-zinc-200">
-            <select id="trendFilter" class="bg-zinc-950 border border-zinc-800 text-xs px-2 py-1 rounded-lg text-zinc-300">
+            <select id="trendFilter" onchange="resetAndRunScreener()" class="bg-zinc-950 border border-zinc-800 text-xs px-2 py-1 rounded-lg text-zinc-300">
               <option value="ALL">全部評價</option>
               <option value="STRONG_BUY">強勢建議買</option>
               <option value="NEUTRAL">中立觀望</option>
@@ -233,9 +218,6 @@
               <option value="DESC">AI因子: 由大到小 ▾</option>
               <option value="ASC">AI因子: 由小到大 ▴</option>
             </select>
-            <button onclick="resetAndRunScreener()" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 px-3 py-1 rounded-lg font-bold transition">
-              篩選
-            </button>
           </div>
         </div>
 
@@ -243,7 +225,7 @@
           <table class="w-full text-left text-xs">
             <thead class="bg-zinc-950 text-zinc-500 uppercase font-medium">
               <tr>
-                <th class="p-2">標的</th>
+                <th class="p-2">標的 / 產業</th>
                 <th class="p-2">收盤實價</th>
                 <th class="p-2">趨勢評定</th>
                 <th class="p-2 cursor-pointer hover:text-amber-400 select-none text-amber-400/90 font-bold" onclick="toggleHeaderSort()">
@@ -279,6 +261,7 @@
           <div>
             <div class="flex items-center gap-2">
               <h3 class="font-bold text-sm text-zinc-200" id="modalStockTitle">--</h3>
+              <span id="modalCategoryBadge" class="text-[10px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700 font-mono">--</span>
               <span id="modalTrendBadge" class="text-[10px] px-2 py-0.5 rounded font-bold">--</span>
             </div>
             <p class="text-[11px] text-zinc-500 mt-0.5" id="modalStockSubtitle">--</p>
@@ -289,7 +272,7 @@
         <div class="overflow-y-auto space-y-3 flex-1 pr-1">
           <div class="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 relative">
             <div id="chartLoadingOverlay" class="absolute inset-0 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center text-xs text-zinc-400 z-10">
-              正在同步歷年完整真實 K 線走勢 (支援縮放回溯)...
+              正在同步歷年完整真實 K 線走勢...
             </div>
             <div id="tvChartWrapper" style="width: 100%; height: 350px;"></div>
           </div>
@@ -328,52 +311,43 @@
       </div>
     </div>
 
-    <!-- AI 回測實證 Modal -->
-    <div id="aiExplainerModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-2xl shadow-2xl p-4 space-y-3">
-        <div class="flex justify-between items-center border-b border-zinc-800 pb-2">
-          <h3 class="font-bold text-sm text-zinc-200">💡 深度視覺模型與回測實證</h3>
-          <button onclick="closeAiExplainerModal()" class="text-zinc-500 hover:text-zinc-200 font-bold">✕</button>
-        </div>
-        <div class="text-xs text-zinc-400 space-y-2 leading-relaxed">
-          <p>本系統透過 FinLab 官方盤後資料庫與深度學習量化指標進行多空判別：</p>
-          <ul class="list-disc list-inside space-y-1 text-zinc-300">
-            <li><strong>真實現價與真實籌碼</strong>：每天由 GitHub 雲端自動同步，排除所有 ETF/DR 標的。</li>
-            <li><strong>雙向共振機制</strong>：配合外資與投信 15 日買賣超累計，自動防禦假突破。</li>
-          </ul>
-        </div>
-        <div class="pt-2 border-t border-zinc-800 flex justify-end">
-          <button onclick="closeAiExplainerModal()" class="bg-zinc-800 text-zinc-200 text-xs px-3 py-1.5 rounded-xl border border-zinc-700">
-            我知道了
-          </button>
-        </div>
-      </div>
-    </div>
-
   </div>
 
   <footer class="py-3 text-center text-[11px] text-zinc-600 font-mono">
-    台股發大財 v1.22 • FinLab 雲端同步量化戰情室
+    台股發大財 v1.23 • FinLab 雲端同步量化戰情室
   </footer>
 
   <script>
-    const APP_VERSION = "v1.22";
+    const APP_VERSION = "v1.23";
     
     let REAL_TAIWAN_STOCKS = [];
     let MARKET_STATE = { price: 46551.13, change: 693.47, pct: "+1.51%" };
     let CURRENT_AI_SORT = "DEFAULT";
 
-    // 常用中文股名備援對應字典
-    const COMMON_STOCK_NAMES = {
-      "2457": "飛宏", "3707": "漢磊", "2330": "台積電", "2317": "鴻海",
-      "2454": "聯發科", "2303": "聯電", "2382": "廣達", "3231": "緯創",
-      "2603": "長榮", "2609": "陽明", "1519": "華城", "1513": "中興電",
-      "2881": "富邦金", "2882": "國泰金", "3017": "奇鋐", "3037": "欣興",
-      "3661": "世芯-KY", "6669": "緯穎", "2357": "華碩", "2376": "技嘉",
-      "3035": "智原", "2379": "瑞昱", "3034": "聯詠", "2301": "光寶科"
+    // 常用股票名稱與產業備用表
+    const FALLBACK_INFO_MAP = {
+      "2457": { name: "飛宏", cat: "電子零組件" },
+      "3707": { name: "漢磊", cat: "半導體" },
+      "2330": { name: "台積電", cat: "半導體" },
+      "2317": { name: "鴻海", cat: "其他電子" },
+      "2454": { name: "聯發科", cat: "半導體" },
+      "2303": { name: "聯電", cat: "半導體" },
+      "2382": { name: "廣達", cat: "電腦及週邊" },
+      "3231": { name: "緯創", cat: "電腦及週邊" },
+      "2603": { name: "長榮", cat: "航運業" },
+      "2609": { name: "陽明", cat: "航運業" },
+      "1519": { name: "華城", cat: "電機機械" },
+      "1513": { name: "中興電", cat: "電機機械" },
+      "2881": { name: "富邦金", cat: "金融保險" },
+      "2882": { name: "國泰金", cat: "金融保險" },
+      "1216": { name: "統一", cat: "食品工業" },
+      "2201": { name: "裕隆", cat: "汽車工業" },
+      "2409": { name: "友達", cat: "光電業" },
+      "3481": { name: "群創", cat: "光電業" },
+      "3008": { name: "大立光", cat: "光電業" }
     };
 
-    // 直連 Yahoo Finance 取得加權指數實時點位
+    // 直連 Yahoo Finance 取得加權指數點位
     async function fetchRealTaiexTick() {
       const targetUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/^TWII?interval=1d&range=1d';
       const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
@@ -382,7 +356,6 @@
         const res = await fetch(proxyUrl);
         const data = await res.json();
         const meta = data.chart.result[0].meta;
-        
         const curPrice = meta.regularMarketPrice;
         const prevClose = meta.chartPreviousClose || meta.previousClose;
         const change = curPrice - prevClose;
@@ -416,10 +389,9 @@
       document.getElementById("marketUpdateTime").textContent = isTaiwanStockMarketOpen() ? `● 盤中連線 (${new Date().toLocaleTimeString('zh-TW')})` : "盤後定格";
     }
 
-    // 載入由 GitHub Actions + FinLab 自動產出之 market_data.json
+    // 載入全市場資料並建立產業清單
     async function loadFinLabMarketData() {
       const badge = document.getElementById("stockCountBadge");
-      const statusBadge = document.getElementById("aiStatusBadge");
       badge.textContent = "正在讀取 FinLab 全市場資料庫...";
 
       try {
@@ -429,7 +401,9 @@
           if (json.stocks && json.stocks.length > 0) {
             REAL_TAIWAN_STOCKS = json.stocks.map(s => {
               const sym = String(s.symbol).trim();
-              const name = (s.name && s.name !== sym) ? s.name : (COMMON_STOCK_NAMES[sym] || sym);
+              const fb = FALLBACK_INFO_MAP[sym] || { name: sym, cat: "其他" };
+              const name = (s.name && s.name !== sym) ? s.name : fb.name;
+              const category = (s.category && s.category !== "其他") ? s.category : fb.cat;
               const factor = s.cnnFactor !== undefined ? parseFloat(s.cnnFactor) : 0.50;
               const net15 = s.net15Total !== undefined ? parseInt(s.net15Total) : (s.net15 || 0);
               
@@ -443,6 +417,7 @@
               return {
                 symbol: sym,
                 name: name,
+                category: category,
                 price: parseFloat(s.price),
                 cnnFactor: factor.toFixed(3),
                 net15Total: net15,
@@ -452,8 +427,8 @@
               };
             });
 
-            badge.textContent = `FinLab 雲端同步完成：共 ${REAL_TAIWAN_STOCKS.length} 檔純台灣個股 (已排除 ETF)`;
-            statusBadge.innerHTML = `資料庫狀態：<strong class="text-emerald-400">已就緒 (${json.updated_at || '最新'})</strong>`;
+            populateCategoryOptions();
+            badge.textContent = `FinLab 同步完成：共收錄 ${REAL_TAIWAN_STOCKS.length} 檔純台灣個股 (含產業分類)`;
             resetAndRunScreener();
             return;
           }
@@ -462,20 +437,37 @@
         console.warn("未能讀取到 market_data.json", err);
       }
 
-      // 備援核心清單 (保證中文名稱與真實價格正確)
-      REAL_TAIWAN_STOCKS = [
-        { symbol: "2457", name: "飛宏", price: 22.65, cnnFactor: "0.780", net15Total: 3645, trendKey: "STRONG_BUY", trendLabel: "強勢建議買", trendColor: "bg-zinc-800 text-amber-400 border-amber-600/40" },
-        { symbol: "3707", name: "漢磊", price: 62.50, cnnFactor: "0.520", net15Total: 780, trendKey: "NEUTRAL", trendLabel: "中立觀望", trendColor: "bg-zinc-800 text-zinc-400 border-zinc-700" },
-        { symbol: "2330", name: "台積電", price: 2450.00, cnnFactor: "0.836", net15Total: 519, trendKey: "STRONG_BUY", trendLabel: "強勢建議買", trendColor: "bg-zinc-800 text-amber-400 border-amber-600/40" },
-        { symbol: "2317", name: "鴻海", price: 215.00, cnnFactor: "0.396", net15Total: -2220, trendKey: "STRONG_SELL", trendLabel: "弱勢建議空", trendColor: "bg-zinc-800 text-zinc-500 border-zinc-700" },
-        { symbol: "2454", name: "聯發科", price: 1350.00, cnnFactor: "0.650", net15Total: 3660, trendKey: "STRONG_BUY", trendLabel: "強勢建議買", trendColor: "bg-zinc-800 text-amber-400 border-amber-600/40" },
-        { symbol: "2382", name: "廣達", price: 285.00, cnnFactor: "0.612", net15Total: 2460, trendKey: "STRONG_BUY", trendLabel: "強勢建議買", trendColor: "bg-zinc-800 text-amber-400 border-amber-600/40" },
-        { symbol: "3231", name: "緯創", price: 112.50, cnnFactor: "0.410", net15Total: -210, trendKey: "NEUTRAL", trendLabel: "中立觀望", trendColor: "bg-zinc-800 text-zinc-400 border-zinc-700" },
-        { symbol: "2603", name: "長榮", price: 192.00, cnnFactor: "0.780", net15Total: 760, trendKey: "STRONG_BUY", trendLabel: "強勢建議買", trendColor: "bg-zinc-800 text-amber-400 border-amber-600/40" }
-      ];
+      // 備援示範池
+      REAL_TAIWAN_STOCKS = Object.keys(FALLBACK_INFO_MAP).map(sym => {
+        const item = FALLBACK_INFO_MAP[sym];
+        let p = 50.0;
+        if (sym === "2457") p = 22.65;
+        else if (sym === "2330") p = 2450.0;
+        else if (sym === "3707") p = 62.5;
+
+        return {
+          symbol: sym,
+          name: item.name,
+          category: item.cat,
+          price: p,
+          cnnFactor: "0.680",
+          net15Total: 1500,
+          trendKey: "STRONG_BUY",
+          trendLabel: "強勢建議買",
+          trendColor: "bg-zinc-800 text-amber-400 border-amber-600/40"
+        };
+      });
+
+      populateCategoryOptions();
       badge.textContent = `請至 GitHub Actions 執行 daily_sync.yml 產出全市場數據`;
-      statusBadge.innerHTML = `資料庫狀態：<strong class="text-amber-400">等待雲端更新中</strong>`;
       resetAndRunScreener();
+    }
+
+    // 動態填入所有產業分類選項
+    function populateCategoryOptions() {
+      const select = document.getElementById("categoryFilter");
+      const cats = Array.from(new Set(REAL_TAIWAN_STOCKS.map(s => s.category))).filter(Boolean).sort();
+      select.innerHTML = `<option value="ALL">全部產業</option>` + cats.map(c => `<option value="${c}">${c}</option>`).join('');
     }
 
     const DEFAULT_USER_WATCHLISTS = [
@@ -603,10 +595,18 @@
       const drop = document.getElementById("searchDropdown");
       const val = kw.trim().toLowerCase();
       if (!val) { drop.classList.add("hidden"); return; }
-      const matches = REAL_TAIWAN_STOCKS.filter(s => s.symbol.toLowerCase().includes(val) || s.name.toLowerCase().includes(val)).slice(0, 10);
+      const matches = REAL_TAIWAN_STOCKS.filter(s => 
+        s.symbol.toLowerCase().includes(val) || 
+        s.name.toLowerCase().includes(val) || 
+        s.category.toLowerCase().includes(val)
+      ).slice(0, 10);
+
       drop.innerHTML = matches.map(s => `
         <div onclick="openStockChartModal('${s.symbol}')" class="p-2 hover:bg-zinc-800 cursor-pointer flex justify-between items-center text-xs">
-          <span>${s.name} (${s.symbol})</span>
+          <div>
+            <span class="font-bold text-zinc-200">${s.name} (${s.symbol})</span>
+            <span class="text-[10px] text-zinc-500 ml-1">· ${s.category}</span>
+          </div>
           <span class="font-mono text-zinc-400">$${s.price.toFixed(2)}</span>
         </div>
       `).join('');
@@ -636,9 +636,12 @@
       const min = parseFloat(document.getElementById("minPrice").value) || 0;
       const max = parseFloat(document.getElementById("maxPrice").value) || 999999;
       const tf = document.getElementById("trendFilter").value;
+      const cat = document.getElementById("categoryFilter").value;
       
       let pool = REAL_TAIWAN_STOCKS.filter(s => s.price >= min && s.price <= max);
       if (tf !== "ALL") pool = pool.filter(s => s.trendKey === tf);
+      if (cat !== "ALL") pool = pool.filter(s => s.category === cat);
+
       currentScreenerResults = pool;
       applySortingAndRender();
     }
@@ -661,7 +664,10 @@
 
       tb.innerHTML = items.length === 0 ? `<tr><td colspan="6" class="p-4 text-center text-zinc-600">無符合標的</td></tr>` : items.map(s => `
         <tr class="hover:bg-zinc-950/50 cursor-pointer" onclick="openStockChartModal('${s.symbol}')">
-          <td class="p-2 font-bold text-zinc-200">${s.name} (${s.symbol})</td>
+          <td class="p-2">
+            <div class="font-bold text-zinc-200">${s.name} (${s.symbol})</div>
+            <span class="text-[10px] text-zinc-500 bg-zinc-900 border border-zinc-800 px-1.5 py-0.2 rounded font-sans">${s.category}</span>
+          </td>
           <td class="p-2 text-zinc-300 font-bold">$${s.price.toFixed(2)}</td>
           <td class="p-2"><span class="${s.trendColor} border px-1.5 py-0.5 rounded text-[10px] font-bold">${s.trendLabel}</span></td>
           <td class="p-2 text-amber-400 font-bold">${s.cnnFactor}</td>
@@ -681,9 +687,10 @@
 
     function openStockChartModal(symbol) {
       document.getElementById("searchDropdown").classList.add("hidden");
-      const stock = REAL_TAIWAN_STOCKS.find(s => s.symbol === symbol) || { symbol, name: symbol, price: 100, cnnFactor: "0.500", net15Total: 0 };
+      const stock = REAL_TAIWAN_STOCKS.find(s => s.symbol === symbol) || { symbol, name: symbol, category: "其他", price: 100, cnnFactor: "0.500", net15Total: 0 };
 
       document.getElementById("modalStockTitle").textContent = `${stock.name} (${stock.symbol})`;
+      document.getElementById("modalCategoryBadge").textContent = stock.category;
       document.getElementById("modalStockSubtitle").textContent = `收盤實價: $${stock.price.toFixed(2)} • 法人 15 日合計: ${stock.net15Total}張`;
       document.getElementById("modalTrendBadge").textContent = stock.trendLabel || "評定中";
       document.getElementById("modalTrendBadge").className = `text-[10px] px-2 py-0.5 rounded font-bold border ${stock.trendColor || ''}`;
@@ -804,8 +811,6 @@
     }
 
     function closeChartModal() { document.getElementById("chartModal").classList.add("hidden"); }
-    function openAiExplainerModal() { document.getElementById("aiExplainerModal").classList.remove("hidden"); }
-    function closeAiExplainerModal() { document.getElementById("aiExplainerModal").classList.add("hidden"); }
 
     async function initView() {
       if (state.isLoggedIn && state.currentUser) {
