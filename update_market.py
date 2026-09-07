@@ -12,8 +12,7 @@ if not api_token:
 finlab.login(api_token)
 
 def sync():
-    print("正在透過 FinLab 下載全台股歷史走勢、產業與法人數據...")
-    # 設定抓取近 3 年（約 750 個交易日）真實資料
+    print("正在透過 FinLab 下載行情、籌碼、月營收與估值數據...")
     data.truncate_start = (datetime.now() - pd.Timedelta(days=1100)).strftime('%Y-%m-%d')
     
     close = data.get('price:收盤價')
@@ -22,6 +21,11 @@ def sync():
     low_p = data.get('price:最低價')
     foreign = data.get('institutional_investors_trading_summary:外陸資買賣超股數(不含外資自營商)') // 1000
     trust = data.get('institutional_investors_trading_summary:投信買賣超股數') // 1000
+
+    # 估值與營收數據
+    pe = data.get('price_earning_ratio:本益比')
+    pb = data.get('price_earning_ratio:股價淨值比')
+    rev_yoy = data.get('monthly_revenue:去年同月增減(%)')
 
     info_map = {}
     try:
@@ -50,10 +54,11 @@ def sync():
 
     latest_date = close.index[-1].strftime('%Y-%m-%d')
     latest_close = close.iloc[-1]
-    print(f"最新行情交易日: {latest_date}")
+    latest_pe = pe.iloc[-1] if not pe.empty else None
+    latest_pb = pb.iloc[-1] if not pb.empty else None
+    latest_rev = rev_yoy.iloc[-1] if not rev_yoy.empty else None
 
     stocks = []
-    # 建立日期格式序列 (YYYY-MM-DD)
     date_strs = [d.strftime('%Y-%m-%d') for d in close.index]
 
     for symbol in latest_close.index:
@@ -72,7 +77,6 @@ def sync():
         if any(keyword in c_name for keyword in ["ETF", "反1", "正2", "債", "存託憑證"]):
             continue
 
-        # 15日法人累計
         net15 = 0
         if sym in foreign.columns and sym in trust.columns:
             f15 = foreign[sym].iloc[-15:].sum()
@@ -80,28 +84,29 @@ def sync():
             val = f15 + t15
             net15 = int(val) if not pd.isna(val) else 0
 
-        # AI 因子評分
-        hash_val = sum(ord(c) for c in sym)
-        base_bias = 0.50 + (0.18 if net15 > 0 else -0.18) * min(abs(net15) / 3000.0, 1.0)
-        noise = ((hash_val % 100) - 50) * 0.0015
-        ai_factor = round(float(min(0.96, max(0.12, base_bias + noise))), 3)
+        # 估值與營收
+        pe_val = float(latest_pe[sym]) if latest_pe is not None and sym in latest_pe and pd.notna(latest_pe[sym]) else 18.5
+        pb_val = float(latest_pb[sym]) if latest_pb is not None and sym in latest_pb and pd.notna(latest_pb[sym]) else 2.1
+        rev_val = float(latest_rev[sym]) if latest_rev is not None and sym in latest_rev and pd.notna(latest_rev[sym]) else 5.2
 
-        # 🌟 打包近 3 年完整真實 K 線 (有效排除空值)
+        # 綜合量化 AI 因子 (結合營收 YoY、本益比倒數與籌碼)
+        growth_score = max(-0.3, min(0.3, rev_val / 100.0))
+        value_score = max(-0.2, min(0.2, (20.0 - pe_val) / 50.0)) if pe_val > 0 else -0.1
+        chip_score = max(-0.2, min(0.2, net15 / 5000.0))
+        ai_factor = round(float(min(0.96, max(0.12, 0.50 + growth_score + value_score + chip_score))), 3)
+
+        # 歷史走勢 (取近 750 個交易日)
         kline = []
         if sym in open_p.columns and sym in high_p.columns and sym in low_p.columns:
-            o_s = open_p[sym]
-            h_s = high_p[sym]
-            l_s = low_p[sym]
-            c_s = close[sym]
-
+            o_s, h_s, l_s, c_s = open_p[sym], high_p[sym], low_p[sym], close[sym]
             for idx in range(len(date_strs)):
-                o_val, h_val, l_val, c_val = o_s.iloc[idx], h_s.iloc[idx], l_s.iloc[idx], c_s.iloc[idx]
+                c_val = c_s.iloc[idx]
                 if pd.notna(c_val) and c_val > 0:
                     kline.append({
                         "time": date_strs[idx],
-                        "open": round(float(o_val if pd.notna(o_val) else c_val), 2),
-                        "high": round(float(h_val if pd.notna(h_val) else c_val), 2),
-                        "low": round(float(l_val if pd.notna(l_val) else c_val), 2),
+                        "open": round(float(o_s.iloc[idx] if pd.notna(o_s.iloc[idx]) else c_val), 2),
+                        "high": round(float(h_s.iloc[idx] if pd.notna(h_s.iloc[idx]) else c_val), 2),
+                        "low": round(float(l_s.iloc[idx] if pd.notna(l_s.iloc[idx]) else c_val), 2),
                         "close": round(float(c_val), 2)
                     })
 
@@ -110,12 +115,15 @@ def sync():
             "name": c_name,
             "category": cat,
             "price": round(float(p), 2),
+            "pe": round(pe_val, 1),
+            "pb": round(pb_val, 2),
+            "rev_yoy": round(rev_val, 1),
             "cnnFactor": ai_factor,
             "net15Total": net15,
             "kline": kline
         })
 
-    print(f"篩選完成：共收錄 {len(stocks)} 檔純台灣個股 (含真實 3 年 K 線)")
+    print(f"篩選完成：全市場共收錄 {len(stocks)} 檔純台灣個股！")
 
     output_data = {
         "updated_at": latest_date,
@@ -130,7 +138,7 @@ def sync():
     with open("market_data.json", "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False)
 
-    print("✅ 已成功產出包含真實走勢的 market_data.json！")
+    print("✅ 檔案已成功產出至 market_data.json！")
 
 if __name__ == "__main__":
     sync()
