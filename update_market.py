@@ -13,7 +13,7 @@ if not api_token:
 finlab.login(api_token)
 
 def sync():
-    print("正在透過 FinLab 下載行情、籌碼與個股產業資訊...")
+    print("正在透過 FinLab 下載行情、籌碼與全市場完整產業資訊...")
     data.truncate_start = (datetime.now() - pd.Timedelta(days=40)).strftime('%Y-%m-%d')
     
     # 1. 抓取收盤價與三大法人
@@ -21,16 +21,40 @@ def sync():
     foreign = data.get('institutional_investors_trading_summary:外陸資買賣超股數(不含外資自營商)') // 1000
     trust = data.get('institutional_investors_trading_summary:投信買賣超股數') // 1000
 
-    # 2. 抓取公司基本資訊 (取得中文簡稱與標準產業別)
+    # 2. 抓取公司基本資訊 (高相容性對照表)
     info_map = {}
     try:
         df_info = data.get('company_basic_info')
+        # 重設 index 確保能拿到代號
+        if 'stock_id' not in df_info.columns:
+            df_info = df_info.reset_index()
+
         for _, row in df_info.iterrows():
-            sid = str(row.get('stock_id', '')).strip()
-            name = str(row.get('公司簡稱', row.get('stock_name', ''))).strip()
-            category = str(row.get('產業別', row.get('category', '其他'))).strip()
+            # 取得股票代號 (支援不同欄位名稱)
+            sid = str(row.get('stock_id', row.get('index', ''))).strip()
+            
+            # 取得公司名稱
+            name = str(row.get('公司簡稱', row.get('stock_name', row.get('公司名稱', '')))).strip()
+            
+            # 🌟 取得產業類別：逐一測試 FinLab 各版本可能的欄位名稱
+            cat = None
+            for col in ['產業類別', '產業別', '類別', 'category', '主要業務']:
+                if col in row and pd.notna(row[col]) and str(row[col]).strip() != '':
+                    cat = str(row[col]).strip()
+                    break
+            
+            if not cat:
+                cat = "其他"
+
+            # 簡化清理產業名稱 (例如「光電業」->「光電」、「半導體業」->「半導體」)
+            cat = cat.replace("工業", "").replace("科技", "")
+            if cat.endswith("業") and len(cat) > 2:
+                cat = cat[:-1]
+
             if sid and name:
-                info_map[sid] = {"name": name, "category": category if category else "其他"}
+                info_map[sid] = {"name": name, "category": cat}
+                
+        print(f"成功建立 {len(info_map)} 檔個股產業資料庫！")
     except Exception as e:
         print(f"公司資訊解析警告: {e}")
 
@@ -39,6 +63,8 @@ def sync():
     print(f"最新市場交易日: {latest_date}")
 
     stocks = []
+    category_counts = {}
+
     for symbol in latest_close.index:
         sym = str(symbol).strip()
         
@@ -55,7 +81,7 @@ def sync():
         cat = info["category"]
 
         # 雙重排除包含 ETF / 債券等非個股字眼
-        if any(keyword in c_name for keyword in ["ETF", "反1", "正2", "債", "存託憑證"]):
+        if any(keyword in c_name for keyword in ["ETF", "反1", "正2", "債", "存託憑證", "收益"]):
             continue
 
         # 計算近 15 日外資+投信累計買賣超 (張)
@@ -81,7 +107,10 @@ def sync():
             "net15Total": net15
         })
 
-    print(f"處理完成：收錄 {len(stocks)} 檔台灣純個股 (含中文名與產業分類)")
+        category_counts[cat] = category_counts.get(cat, 0) + 1
+
+    print(f"篩選完成：全市場有效個股共 {len(stocks)} 檔！")
+    print("各大產業家數統計前 5 名：", sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:5])
 
     output_data = {
         "updated_at": latest_date,
@@ -96,7 +125,7 @@ def sync():
     with open("market_data.json", "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False, indent=2)
 
-    print("已成功產出包含產業分類的 market_data.json！")
+    print("已成功產出全市場完整產業分類的 market_data.json！")
 
 if __name__ == "__main__":
     sync()
