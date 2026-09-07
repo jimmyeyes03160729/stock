@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>台股發大財 v1.28 - 深度量化神經網路戰情室</title>
+  <title>台股發大財 v1.29 - 深度量化神經網路戰情室</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lightweight Charts (本地高效渲染、無版權阻擋) -->
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
@@ -74,10 +74,6 @@
       padding-bottom: env(safe-area-inset-bottom);
       background-color: #050507 !important;
     }
-    @keyframes pulse-glow {
-      0%, 100% { opacity: 0.3; transform: scale(0.98); }
-      50% { opacity: 0.8; transform: scale(1.02); }
-    }
     .glow-effect {
       box-shadow: 0 0 15px rgba(245, 158, 11, 0.15);
     }
@@ -92,7 +88,7 @@
         <h1 class="text-xl font-bold text-amber-500/90 flex items-center justify-center gap-2">
           <span>⚡</span> 台股發大財
         </h1>
-        <p class="text-xs text-zinc-500 mt-1">深度神經網路量化戰情室 (v1.28 定版)</p>
+        <p class="text-xs text-zinc-500 mt-1">深度神經網路量化戰情室 (v1.29)</p>
       </div>
 
       <button onclick="handleGoogleSignIn()" class="w-full flex items-center justify-center gap-2 bg-zinc-800 border border-zinc-700 py-2.5 rounded-xl font-medium text-xs text-zinc-200 hover:bg-zinc-700 transition">
@@ -134,7 +130,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base font-bold text-zinc-100 tracking-wide">台股發大財</h1>
-            <span id="systemVersionBadge" class="bg-amber-950/60 text-amber-400 border border-amber-700/60 px-2 py-0.5 rounded text-[10px] font-mono font-bold">v1.28 Active</span>
+            <span id="systemVersionBadge" class="bg-amber-950/60 text-amber-400 border border-amber-700/60 px-2 py-0.5 rounded text-[10px] font-mono font-bold">v1.29 Active</span>
           </div>
           <p class="text-[11px] text-zinc-400 mt-0.5">
             席位：<span id="currentAccountBadge" class="font-bold text-zinc-200 font-mono">--</span> | 
@@ -157,7 +153,7 @@
       </div>
     </header>
 
-    <!-- 🌟 高科技 AI 判別推論管線流程儀表板 (Pipeline Status) -->
+    <!-- AI 判別推論管線流程儀表板 -->
     <section class="bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 p-4 rounded-2xl border border-zinc-800 shadow-md">
       <div class="flex items-center justify-between pb-2 mb-3 border-b border-zinc-800/80">
         <span class="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
@@ -168,7 +164,6 @@
       </div>
       
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-mono">
-        <!-- Stage 1 -->
         <div class="bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800/80 relative overflow-hidden">
           <div class="text-[10px] text-zinc-500">STAGE 01 / 擷取</div>
           <div class="text-xs font-bold text-zinc-200 mt-0.5">FinLab 盤後陣列</div>
@@ -176,7 +171,6 @@
             <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 1,800+ 檔純個股
           </div>
         </div>
-        <!-- Stage 2 -->
         <div class="bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800/80 relative overflow-hidden">
           <div class="text-[10px] text-zinc-500">STAGE 02 / 張量化</div>
           <div class="text-xs font-bold text-zinc-200 mt-0.5">OHLCV 幾何張量</div>
@@ -184,7 +178,6 @@
             <span class="inline-block w-1.5 h-1.5 rounded-full bg-sky-400"></span> [1, 1, 60, 30] 矩陣
           </div>
         </div>
-        <!-- Stage 3 -->
         <div class="bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800/80 relative overflow-hidden">
           <div class="text-[10px] text-zinc-500">STAGE 03 / 推論</div>
           <div class="text-xs font-bold text-zinc-200 mt-0.5">CNN 卷積機率估算</div>
@@ -192,7 +185,6 @@
             <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-400"></span> Softmax 多空因子
           </div>
         </div>
-        <!-- Stage 4 -->
         <div class="bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800/80 relative overflow-hidden">
           <div class="text-[10px] text-zinc-500">STAGE 04 / 驗證</div>
           <div class="text-xs font-bold text-zinc-200 mt-0.5">15日籌碼共振過濾</div>
@@ -254,11 +246,22 @@
             <select id="categoryFilter" onchange="resetAndRunScreener()" class="bg-zinc-950 border border-zinc-800 text-xs px-2 py-1 rounded-lg text-zinc-200">
               <option value="ALL">全部產業</option>
             </select>
-            <input id="minPrice" type="number" placeholder="最低" value="10" 
-                   class="bg-zinc-950 border border-zinc-800 text-xs px-2 py-1 rounded-lg w-14 text-zinc-200">
-            <span class="text-zinc-600 text-xs">~</span>
-            <input id="maxPrice" type="number" placeholder="最高" value="3000" 
-                   class="bg-zinc-950 border border-zinc-800 text-xs px-2 py-1 rounded-lg w-16 text-zinc-200">
+            
+            <!-- 金額篩選群組 (含確認按鈕與 Enter 鍵綁定) -->
+            <div class="flex items-center gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-zinc-800">
+              <input id="minPrice" type="number" placeholder="最低" value="10" 
+                     onkeydown="if(event.key==='Enter') resetAndRunScreener()"
+                     class="bg-zinc-950 border border-zinc-700 text-xs px-2 py-1 rounded w-16 text-zinc-200 focus:outline-none focus:border-amber-500">
+              <span class="text-zinc-600 text-xs">~</span>
+              <input id="maxPrice" type="number" placeholder="最高" value="3000" 
+                     onkeydown="if(event.key==='Enter') resetAndRunScreener()"
+                     class="bg-zinc-950 border border-zinc-700 text-xs px-2 py-1 rounded w-16 text-zinc-200 focus:outline-none focus:border-amber-500">
+              <button onclick="resetAndRunScreener()" 
+                      class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 text-xs px-2.5 py-1 rounded font-bold transition">
+                確認
+              </button>
+            </div>
+
             <select id="trendFilter" onchange="resetAndRunScreener()" class="bg-zinc-950 border border-zinc-800 text-xs px-2 py-1 rounded-lg text-zinc-300">
               <option value="ALL">全部評價</option>
               <option value="STRONG_BUY">強勢建議買</option>
@@ -366,11 +369,11 @@
   </div>
 
   <footer class="py-3 text-center text-[11px] text-zinc-600 font-mono">
-    台股發大財 v1.28 Final • 深度量化神經網路戰情室
+    台股發大財 v1.29 • 深度量化神經網路戰情室
   </footer>
 
   <script>
-    const APP_VERSION = "v1.28";
+    const APP_VERSION = "v1.29";
     
     let REAL_TAIWAN_STOCKS = [];
     let MARKET_STATE = { price: 46551.13, change: 693.47, pct: "+1.51%" };
@@ -447,7 +450,6 @@
       badge.textContent = "正在讀取 FinLab 全市場資料庫...";
 
       try {
-        // Cache-Busting 避免命中快取
         const res = await fetch('./market_data.json?t=' + Date.now(), { cache: 'no-cache' });
         if (res.ok) {
           const json = await res.json();
@@ -492,7 +494,6 @@
         console.warn("未能讀取到 market_data.json", err);
       }
 
-      // 備援保底數據
       REAL_TAIWAN_STOCKS = Object.keys(FALLBACK_INFO_MAP).map(sym => {
         const item = FALLBACK_INFO_MAP[sym];
         let p = 50.0;
@@ -797,14 +798,12 @@
         wickDownColor: '#10b981'
       });
 
-      // 1. 優先使用 FinLab 官方同步之歷史 K 線
       if (stock.kline && stock.kline.length > 0) {
         candlestickSeries.setData(stock.kline);
         currentChart.timeScale().fitContent();
         return;
       }
 
-      // 2. 備用倒推邏輯
       let currentP = stock.price;
       const reversedData = [];
       const now = new Date();
