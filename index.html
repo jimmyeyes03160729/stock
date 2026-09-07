@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>台股發大財 v1.31 - 深度量化神經網路戰情室</title>
+  <title>台股發大財 v1.32 - 深度量化神經網路戰情室</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lightweight Charts (本地高效渲染、無版權阻擋) -->
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
@@ -44,6 +44,10 @@
         const bindingRef = ref(db, `bindings/${uid}`);
         const snap = await get(bindingRef);
         return snap.val();
+      },
+      bindGoogleUser: async (uid, customUser) => {
+        const bindingRef = ref(db, `bindings/${uid}`);
+        return set(bindingRef, { customUser: customUser.trim().toLowerCase() });
       },
       listenWatchlists: (username, callback) => {
         if (unsubscribeWatchlists) unsubscribeWatchlists();
@@ -88,7 +92,7 @@
         <h1 class="text-xl font-bold text-amber-500/90 flex items-center justify-center gap-2">
           <span>⚡</span> 台股發大財
         </h1>
-        <p class="text-xs text-zinc-500 mt-1">深度神經網路與量化回測戰情室 (v1.31)</p>
+        <p class="text-xs text-zinc-500 mt-1">深度神經網路與量化回測戰情室 (v1.32)</p>
       </div>
 
       <button onclick="handleGoogleSignIn()" class="w-full flex items-center justify-center gap-2 bg-zinc-800 border border-zinc-700 py-2.5 rounded-xl font-medium text-xs text-zinc-200 hover:bg-zinc-700 transition">
@@ -130,7 +134,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base font-bold text-zinc-100 tracking-wide">台股發大財</h1>
-            <span id="systemVersionBadge" class="bg-amber-950/60 text-amber-400 border border-amber-700/60 px-2 py-0.5 rounded text-[10px] font-mono font-bold">v1.31 Active</span>
+            <span id="systemVersionBadge" class="bg-amber-950/60 text-amber-400 border border-amber-700/60 px-2 py-0.5 rounded text-[10px] font-mono font-bold">v1.32 Active</span>
           </div>
           <p class="text-[11px] text-zinc-400 mt-0.5">
             席位：<span id="currentAccountBadge" class="font-bold text-zinc-200 font-mono">--</span> | 
@@ -392,11 +396,11 @@
   </div>
 
   <footer class="py-3 text-center text-[11px] text-zinc-600 font-mono">
-    台股發大財 v1.31 • 深度量化神經網路戰情室
+    台股發大財 v1.32 • 深度量化神經網路戰情室
   </footer>
 
   <script>
-    const APP_VERSION = "v1.31";
+    const APP_VERSION = "v1.32";
     
     let REAL_TAIWAN_STOCKS = [];
     let MARKET_STATE = { price: 46551.13, change: 693.47, pct: "+1.51%" };
@@ -468,7 +472,6 @@
       }
     }
 
-    // 🌟 延長交易日監聽窗口至 13:45，確保順利接收 13:30 集合競價撮合的最終收盤價
     function isTaiwanStockMarketOpen() {
       const now = new Date();
       const twNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + 28800000);
@@ -478,11 +481,10 @@
       return mins >= 540 && mins <= 825; // 09:00 (540分) ~ 13:45 (825分)
     }
 
-    // 🌟 雙備援即時大盤獲取機制 (TWSE 官方優先 + Yahoo Finance 備援)
     async function fetchRealTaiexTick() {
       let updated = false;
 
-      // 1. 優先嘗試 TWSE 官方即時加權指數端點 (即時無延遲)
+      // 1. 優先嘗試 TWSE 官方即時加權指數端點
       try {
         const twseUrl = `https://corsproxy.io/?${encodeURIComponent('https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_t00.tw')}`;
         const controller = new AbortController();
@@ -692,16 +694,37 @@
       }
     }
 
+    // 🌟 自動綁定機制 (若未綁定則引導輸入並自動在 Firebase 註冊)
     async function handleGoogleSignIn() {
       try {
         const result = await window.cloudAuth.loginWithGoogle();
         const googleUser = result.user;
+        
+        // 1. 檢查是否已存在綁定關係
         const binding = await window.cloudDB.getGoogleBinding(googleUser.uid);
         if (binding && binding.customUser) {
           loginSuccess(binding.customUser);
-        } else {
-          alert('此 Google 帳號尚未綁定戰情席位！');
+          return;
         }
+
+        // 2. 未綁定時：建議使用 Google Email 前綴作為預設席位名稱
+        const defaultUser = (googleUser.email ? googleUser.email.split('@')[0] : 'user_' + googleUser.uid.slice(0, 5)).toLowerCase();
+        const chosenUser = prompt(
+          `首次使用此 Google 帳號授權！\n請確認欲綁定的戰情席位代號 (預設為 Email 帳號)：`, 
+          defaultUser
+        );
+
+        if (!chosenUser || !chosenUser.trim()) {
+          alert('取消綁定，無法登入戰情席位。');
+          return;
+        }
+
+        const finalUser = chosenUser.trim().toLowerCase();
+
+        // 3. 自動寫入 Firebase Realtime Database
+        await window.cloudDB.bindGoogleUser(googleUser.uid, finalUser);
+        alert(`綁定成功！歡迎登入戰情席位：${finalUser}`);
+        loginSuccess(finalUser);
       } catch (err) {
         alert('Google 授權失敗：' + err.message);
       }
